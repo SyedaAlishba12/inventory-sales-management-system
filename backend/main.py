@@ -1,8 +1,11 @@
 from fastapi import FastAPI
 
+APP_NAME = "Inventory & Sales Management System"
+APP_VERSION = "1.0.0"
+
 app = FastAPI(
-    title="Inventory & Sales Management System",
-    version="1.0.0"
+    title=APP_NAME,
+    version=APP_VERSION,
 )
 
 
@@ -16,5 +19,7 @@ def root():
 @app.get("/health")
 def health_check():
     return {
-        "status": "healthy"
+        "status": "healthy",
+        "service": APP_NAME,
+        "version": APP_VERSION,
     }
