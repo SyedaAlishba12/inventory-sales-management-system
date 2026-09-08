@@ -36,6 +36,43 @@ uvicorn main:app --reload
 The API runs at `http://localhost:8000`; interactive documentation is available
 at `http://localhost:8000/docs`.
 
+### PostgreSQL
+
+Start the local PostgreSQL service from the project root:
+
+```powershell
+docker compose up -d postgres
+cd backend
+Copy-Item .env.example .env
+.\venv\Scripts\Activate.ps1
+python -m database.init_db
+```
+
+Docker Desktop is optional. If `docker` is not installed, skip this command and
+use an existing local/cloud PostgreSQL server by updating `DATABASE_URL` in
+`backend/.env`. The automated database tests use isolated SQLite and do not
+require Docker.
+
+The check command verifies connectivity without creating tables. Application
+schema changes should normally be managed through Alembic rather than
+`create_all`.
+
+### Database migrations
+
+Run migration commands from `backend`:
+
+```powershell
+alembic current
+alembic revision --autogenerate -m "describe schema change"
+alembic upgrade head
+alembic downgrade -1
+```
+
+All SQLAlchemy models must inherit from `database.Base`. Alembic automatically
+imports modules under `backend/models` before comparing metadata. Coordinate
+model and relationship changes with Syeda before generating or merging a
+migration.
+
 ## Verification
 
 ```powershell
@@ -45,7 +82,7 @@ npm run check
 cd ..\backend
 .\venv\Scripts\Activate.ps1
 ruff check .
-pytest
+python -m pytest
 ```
 
 Development work must be made on feature branches. Pull requests target

@@ -1,11 +1,35 @@
-from fastapi import FastAPI
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
-APP_NAME = "Inventory & Sales Management System"
-APP_VERSION = "1.0.0"
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from common.config import get_settings
+from database.session import dispose_database
+
+settings = get_settings()
+APP_NAME = settings.app_name
+APP_VERSION = settings.app_version
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    yield
+    await dispose_database()
 
 app = FastAPI(
     title=APP_NAME,
     version=APP_VERSION,
+    debug=settings.debug,
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origin_list,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
