@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from common.config import get_settings
 from database.session import dispose_database
+from routes.activity_log_routes import router as activity_log_router
 
 settings = get_settings()
 APP_NAME = settings.app_name
@@ -31,6 +32,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(activity_log_router)
 
 
 @app.get("/")
