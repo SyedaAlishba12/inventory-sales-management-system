@@ -50,3 +50,17 @@ pytest
 
 Development work must be made on feature branches. Pull requests target
 `develop`; `main` is reserved for stable releases.
+
+## Shared UI system
+
+Reusable controls are exported from `frontend/src/components/ui`. Responsive
+application layout components are exported from `frontend/src/components/layout`.
+
+During development, open `http://localhost:3000/ui-kit` to review component
+variants, form controls, overlays, loading states, empty/error states, and the
+responsive sidebar layout.
+
+```tsx
+import { MainLayout, PageHeader } from "@/components/layout";
+import { Button, Card } from "@/components/ui";
+```
