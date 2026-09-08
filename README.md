@@ -60,7 +60,15 @@ During development, open `http://localhost:3000/ui-kit` to review component
 variants, form controls, overlays, loading states, empty/error states, and the
 responsive sidebar layout.
 
+Open `http://localhost:3000/ui-kit/business` to review the shared data table,
+filters, product/customer/notification cards, and POS building blocks.
+
 ```tsx
 import { MainLayout, PageHeader } from "@/components/layout";
 import { Button, Card } from "@/components/ui";
 ```
+
+API helpers, formatting, validation, loading, and toast utilities are exported
+from `frontend/src/utils`. Shared frontend contracts are exported from
+`frontend/src/types`; these are client-side API/view contracts and do not
+replace team-owned backend models.

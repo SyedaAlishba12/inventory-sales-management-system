@@ -14,6 +14,7 @@ export * from "./modal";
 export * from "./pagination";
 export * from "./radio-group";
 export * from "./select";
+export * from "./separator";
 export * from "./skeleton";
 export * from "./spinner";
 export * from "./switch";
