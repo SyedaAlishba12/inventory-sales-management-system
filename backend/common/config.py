@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     debug: bool = False
 
     database_url: str = (
-        "postgresql+asyncpg://postgres:postgres@localhost:5432/inventory_sales"
+        "use orginal post grel uri"
     )
     database_echo: bool = False
     database_pool_size: int = Field(default=5, ge=1, le=50)
