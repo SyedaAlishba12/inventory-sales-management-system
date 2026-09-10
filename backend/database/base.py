@@ -1,6 +1,7 @@
 from datetime import datetime
+from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, MetaData, func
+from sqlalchemy import DateTime, MetaData, Uuid, func
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -21,6 +22,16 @@ class Base(AsyncAttrs, DeclarativeBase):
 
 class IntegerPrimaryKeyMixin:
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+
+
+class UUIDPrimaryKeyMixin:
+    """Project-standard UUID primary key using PostgreSQL's native UUID type."""
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True, native_uuid=True),
+        primary_key=True,
+        default=uuid4,
+    )
 
 
 class TimestampMixin:

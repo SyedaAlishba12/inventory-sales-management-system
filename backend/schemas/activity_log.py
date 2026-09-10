@@ -1,13 +1,14 @@
 from datetime import datetime
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class ActivityLogCreate(BaseModel):
-    user_id: int | None = Field(default=None, gt=0)
+    user_id: UUID | None = None
     action: str = Field(min_length=1, max_length=100)
     entity_type: str | None = Field(default=None, max_length=50)
-    entity_id: int | None = Field(default=None, gt=0)
+    entity_id: UUID | None = None
     description: str | None = None
 
     @model_validator(mode="after")
@@ -23,11 +24,11 @@ class ActivityLogCreate(BaseModel):
 
 
 class ActivityLogRead(BaseModel):
-    id: int
-    user_id: int | None
+    id: UUID
+    user_id: UUID | None
     action: str
     entity_type: str | None
-    entity_id: int | None
+    entity_id: UUID | None
     description: str | None
     created_at: datetime
 
