@@ -1,9 +1,39 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from common.config import get_settings
+from database.session import dispose_database
+from routes.activity_log_routes import router as activity_log_router
+
+settings = get_settings()
+APP_NAME = settings.app_name
+APP_VERSION = settings.app_version
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    yield
+    await dispose_database()
 
 app = FastAPI(
-    title="Inventory & Sales Management System",
-    version="1.0.0"
+    title=APP_NAME,
+    version=APP_VERSION,
+    debug=settings.debug,
+    lifespan=lifespan,
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origin_list,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(activity_log_router)
 
 
 @app.get("/")
@@ -16,5 +46,7 @@ def root():
 @app.get("/health")
 def health_check():
     return {
-        "status": "healthy"
+        "status": "healthy",
+        "service": APP_NAME,
+        "version": APP_VERSION,
     }

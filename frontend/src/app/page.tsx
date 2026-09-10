@@ -1,15 +1,13 @@
-export default function Home() {
-  return (
-    <main className="flex min-h-screen items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold">
-          Inventory & Sales Management System
-        </h1>
+import type { Metadata } from "next";
 
-        <p className="mt-4 text-gray-600">
-          Frontend is working successfully.
-        </p>
-      </div>
-    </main>
-  );
+import { LandingPage } from "@/components/landing";
+
+export const metadata: Metadata = {
+  title: "Inventory and Sales Management",
+  description:
+    "Manage products, inventory, POS sales, customers, suppliers, purchases, activity, and reports in one connected system.",
+};
+
+export default function HomePage() {
+  return <LandingPage />;
 }
