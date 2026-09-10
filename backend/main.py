@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from common.config import get_settings
 from database.session import dispose_database
 from routes.activity_log_routes import router as activity_log_router
+from routes.sales_routes import router as sales_router
 
 settings = get_settings()
 APP_NAME = settings.app_name
@@ -17,6 +18,7 @@ APP_VERSION = settings.app_version
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     yield
     await dispose_database()
+
 
 app = FastAPI(
     title=APP_NAME,
@@ -34,6 +36,7 @@ app.add_middleware(
 )
 
 app.include_router(activity_log_router)
+app.include_router(sales_router)
 
 
 @app.get("/")
