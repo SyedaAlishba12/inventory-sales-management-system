@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Annotated
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,10 +18,10 @@ async def list_activity_logs(
     session: DatabaseSession,
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
-    user_id: Annotated[int | None, Query(gt=0)] = None,
+    user_id: Annotated[UUID | None, Query()] = None,
     action: Annotated[str | None, Query(min_length=1, max_length=100)] = None,
     entity_type: Annotated[str | None, Query(min_length=1, max_length=50)] = None,
-    entity_id: Annotated[int | None, Query(gt=0)] = None,
+    entity_id: Annotated[UUID | None, Query()] = None,
     start_date: datetime | None = None,
     end_date: datetime | None = None,
 ) -> ActivityLogListResponse:
@@ -51,7 +52,7 @@ async def list_activity_logs(
 
 @router.get("/{activity_log_id}", response_model=ActivityLogRead)
 async def get_activity_log(
-    activity_log_id: Annotated[int, Path(gt=0)],
+    activity_log_id: Annotated[UUID, Path()],
     session: DatabaseSession,
 ) -> ActivityLogRead:
     activity_log = await activity_log_service.get_by_id(session, activity_log_id)

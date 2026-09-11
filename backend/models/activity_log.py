@@ -1,19 +1,21 @@
 from datetime import datetime
+from uuid import UUID
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 
-from database.base import Base, IntegerPrimaryKeyMixin
+from database.base import Base, UUIDPrimaryKeyMixin
 
 
-class ActivityLog(IntegerPrimaryKeyMixin, Base):
+class ActivityLog(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "activity_logs"
     __table_args__ = (
         Index("ix_activity_logs_entity", "entity_type", "entity_id"),
         Index("ix_activity_logs_created_at", "created_at"),
     )
 
-    user_id: Mapped[int | None] = mapped_column(
+    user_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True, native_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL", onupdate="CASCADE"),
         nullable=True,
         index=True,
@@ -23,7 +25,10 @@ class ActivityLog(IntegerPrimaryKeyMixin, Base):
         String(50),
         nullable=True,
     )
-    entity_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    entity_id: Mapped[UUID | None] = mapped_column(
+        Uuid(as_uuid=True, native_uuid=True),
+        nullable=True,
+    )
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

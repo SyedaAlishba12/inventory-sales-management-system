@@ -1,5 +1,6 @@
 from datetime import datetime
 from math import ceil
+from uuid import UUID
 
 from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,9 +15,9 @@ class ActivityLogService:
         session: AsyncSession,
         *,
         action: str,
-        user_id: int | None = None,
+        user_id: UUID | None = None,
         entity_type: str | None = None,
-        entity_id: int | None = None,
+        entity_id: UUID | None = None,
         description: str | None = None,
     ) -> ActivityLog:
         """Add an audit event to the caller's current database transaction."""
@@ -37,7 +38,7 @@ class ActivityLogService:
     async def get_by_id(
         self,
         session: AsyncSession,
-        activity_log_id: int,
+        activity_log_id: UUID,
     ) -> ActivityLog | None:
         return await session.get(ActivityLog, activity_log_id)
 
@@ -47,10 +48,10 @@ class ActivityLogService:
         *,
         page: int = 1,
         page_size: int = 20,
-        user_id: int | None = None,
+        user_id: UUID | None = None,
         action: str | None = None,
         entity_type: str | None = None,
-        entity_id: int | None = None,
+        entity_id: UUID | None = None,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
     ) -> tuple[list[ActivityLog], int, int]:

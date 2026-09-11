@@ -1,9 +1,10 @@
 from collections.abc import AsyncIterator
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import Column, Integer, Table, insert
+from sqlalchemy import Column, Table, Uuid, insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from common.config import Settings
@@ -17,6 +18,9 @@ from models.activity_log import ActivityLog
 from routes.activity_log_routes import router
 from schemas.activity_log import ActivityLogCreate
 from services.activity_log_service import activity_log_service
+
+TEST_USER_ID = uuid4()
+PRODUCT_ID = uuid4()
 
 
 @pytest.fixture
@@ -32,12 +36,12 @@ async def session_factory() -> AsyncIterator[async_sessionmaker[AsyncSession]]:
         users_table = Table(
             "users",
             Base.metadata,
-            Column("id", Integer, primary_key=True),
+            Column("id", Uuid(as_uuid=True, native_uuid=True), primary_key=True),
         )
 
     async with database_engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
-        await connection.execute(insert(users_table).values(id=1))
+        await connection.execute(insert(users_table).values(id=TEST_USER_ID))
 
     factory = create_session_factory(database_engine)
     try:
@@ -50,12 +54,12 @@ async def create_log(
     factory: async_sessionmaker[AsyncSession],
     *,
     action: str = "product.updated",
-    entity_id: int = 42,
+    entity_id: UUID = PRODUCT_ID,
 ) -> ActivityLog:
     async with factory() as session:
         activity_log = await activity_log_service.log(
             session,
-            user_id=1,
+            user_id=TEST_USER_ID,
             action=action,
             entity_type="product",
             entity_id=entity_id,
@@ -69,7 +73,7 @@ def test_activity_log_payload_normalizes_text() -> None:
     payload = ActivityLogCreate(
         action="  product.updated  ",
         entity_type="  product ",
-        entity_id=42,
+        entity_id=PRODUCT_ID,
         description="  Updated stock level  ",
     )
 
@@ -80,14 +84,19 @@ def test_activity_log_payload_normalizes_text() -> None:
 
 def test_activity_log_payload_requires_entity_type_for_entity_id() -> None:
     with pytest.raises(ValueError, match="entity_type is required"):
-        ActivityLogCreate(action="product.updated", entity_id=42)
+        ActivityLogCreate(action="product.updated", entity_id=PRODUCT_ID)
 
 
 async def test_service_creates_reads_filters_and_paginates_logs(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
-    first = await create_log(session_factory, entity_id=42)
-    await create_log(session_factory, action="product.viewed", entity_id=99)
+    first = await create_log(session_factory, entity_id=PRODUCT_ID)
+    viewed_product_id = uuid4()
+    await create_log(
+        session_factory,
+        action="product.viewed",
+        entity_id=viewed_product_id,
+    )
 
     async with session_factory() as session:
         stored = await activity_log_service.get_by_id(session, first.id)
@@ -97,11 +106,13 @@ async def test_service_creates_reads_filters_and_paginates_logs(
             page_size=1,
             action="product.updated",
             entity_type="product",
-            entity_id=42,
-            user_id=1,
+            entity_id=PRODUCT_ID,
+            user_id=TEST_USER_ID,
         )
 
     assert stored is not None
+    assert isinstance(first.id, UUID)
+    assert first.user_id == TEST_USER_ID
     assert stored.description == "Updated stock level"
     assert [item.id for item in items] == [first.id]
     assert total == 1
@@ -129,7 +140,7 @@ async def test_activity_log_read_api_and_errors(
         detail_response = await client.get(
             f"/api/activity-logs/{activity_log.id}"
         )
-        missing_response = await client.get("/api/activity-logs/999")
+        missing_response = await client.get(f"/api/activity-logs/{uuid4()}")
         invalid_range_response = await client.get(
             "/api/activity-logs",
             params={
@@ -140,7 +151,7 @@ async def test_activity_log_read_api_and_errors(
 
     assert list_response.status_code == 200
     assert list_response.json()["total"] == 1
-    assert list_response.json()["items"][0]["id"] == activity_log.id
+    assert list_response.json()["items"][0]["id"] == str(activity_log.id)
     assert detail_response.status_code == 200
     assert detail_response.json()["action"] == "product.updated"
     assert missing_response.status_code == 404
