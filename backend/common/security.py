@@ -24,7 +24,7 @@ NOTE — SECRET_KEY / ALGORITHM config:
 
 import os
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from argon2 import PasswordHasher
@@ -129,7 +129,7 @@ def _build_token(
     Returns:
         A signed JWT string.
     """
-    now = datetime.now(UTC)
+    now = datetime.now(timezone.utc)
     payload: dict[str, Any] = {
         "sub": subject,
         "type": token_type,

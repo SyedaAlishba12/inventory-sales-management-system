@@ -19,6 +19,8 @@ from routes.activity_log_routes import router
 from schemas.activity_log import ActivityLogCreate
 from services.activity_log_service import activity_log_service
 
+
+
 TEST_USER_ID = uuid4()
 PRODUCT_ID = uuid4()
 
@@ -41,7 +43,16 @@ async def session_factory() -> AsyncIterator[async_sessionmaker[AsyncSession]]:
 
     async with database_engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
-        await connection.execute(insert(users_table).values(id=TEST_USER_ID))
+        await connection.execute(
+            insert(users_table).values(
+                id=TEST_USER_ID,
+                full_name="Test User",
+                email="test@example.com",
+                password_hash="hash",
+                role="staff",
+                is_active=True,
+            )
+        )
 
     factory = create_session_factory(database_engine)
     try:

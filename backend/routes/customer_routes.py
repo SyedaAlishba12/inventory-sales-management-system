@@ -1,32 +1,29 @@
 """
 backend/routes/customer_routes.py
 -----------------------------------
-Route stubs for customer management endpoints.
+Customer management endpoints — fully wired to customer_service.
 
-All paths match the division document spec:
     POST   /api/customers
     GET    /api/customers
     GET    /api/customers/{customer_id}
     PATCH  /api/customers/{customer_id}
-    DELETE /api/customers/{customer_id}
-
-Service-layer calls raise NotImplementedError because:
-    - backend/models/customer.py (Customer ORM model) does not yet exist.
+    DELETE /api/customers/{customer_id}   (admin only)
 """
 
 import uuid
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.middleware.auth_middleware import get_db, require_admin, require_staff
-from backend.schemas.customer_schema import (
-    CustomerCreate,
-    CustomerResponse,
-    CustomerUpdate,
-)
+from database.session import get_db_session
+from middleware.auth_middleware import require_admin, require_staff
+from schemas.customer_schema import CustomerCreate, CustomerResponse, CustomerUpdate
+from services.customer_service import customer_service
 
 router = APIRouter(prefix="/api/customers", tags=["Customers"])
+
+DatabaseSession = Annotated[AsyncSession, Depends(get_db_session)]
 
 
 @router.post(
@@ -37,19 +34,11 @@ router = APIRouter(prefix="/api/customers", tags=["Customers"])
 )
 async def create_customer(
     payload: CustomerCreate,
+    db: DatabaseSession,
     staff=Depends(require_staff),
-    db: AsyncSession = Depends(get_db),
-):
-    """Create a new customer record.
-
-    Blocked on: backend/models/customer.py (Customer ORM model)
-    Next step:  from backend.services.customer_service import CustomerService
-                return await CustomerService(db).create(payload)
-    """
-    raise NotImplementedError(
-        "create_customer is blocked on backend/models/customer.py — "
-        "implement CustomerService.create() once the model exists."
-    )
+) -> CustomerResponse:
+    created = await customer_service.create(db, payload)
+    return CustomerResponse.model_validate(created)
 
 
 @router.get(
@@ -58,19 +47,11 @@ async def create_customer(
     summary="List all customers",
 )
 async def list_customers(
+    db: DatabaseSession,
     staff=Depends(require_staff),
-    db: AsyncSession = Depends(get_db),
-):
-    """Return a list of all customers.
-
-    Blocked on: backend/models/customer.py (Customer ORM model)
-    Next step:  from backend.services.customer_service import CustomerService
-                return await CustomerService(db).list_all()
-    """
-    raise NotImplementedError(
-        "list_customers is blocked on backend/models/customer.py — "
-        "implement CustomerService.list_all() once the model exists."
-    )
+) -> list[CustomerResponse]:
+    customers = await customer_service.list_all(db)
+    return [CustomerResponse.model_validate(c) for c in customers]
 
 
 @router.get(
@@ -80,19 +61,11 @@ async def list_customers(
 )
 async def get_customer(
     customer_id: uuid.UUID,
+    db: DatabaseSession,
     staff=Depends(require_staff),
-    db: AsyncSession = Depends(get_db),
-):
-    """Return a single customer by UUID.
-
-    Blocked on: backend/models/customer.py (Customer ORM model)
-    Next step:  from backend.services.customer_service import CustomerService
-                return await CustomerService(db).get(customer_id)
-    """
-    raise NotImplementedError(
-        "get_customer is blocked on backend/models/customer.py — "
-        "implement CustomerService.get() once the model exists."
-    )
+) -> CustomerResponse:
+    customer = await customer_service.get(db, customer_id)
+    return CustomerResponse.model_validate(customer)
 
 
 @router.patch(
@@ -103,19 +76,11 @@ async def get_customer(
 async def update_customer(
     customer_id: uuid.UUID,
     payload: CustomerUpdate,
+    db: DatabaseSession,
     staff=Depends(require_staff),
-    db: AsyncSession = Depends(get_db),
-):
-    """Apply a partial update to a customer record.
-
-    Blocked on: backend/models/customer.py (Customer ORM model)
-    Next step:  from backend.services.customer_service import CustomerService
-                return await CustomerService(db).update(customer_id, payload)
-    """
-    raise NotImplementedError(
-        "update_customer is blocked on backend/models/customer.py — "
-        "implement CustomerService.update() once the model exists."
-    )
+) -> CustomerResponse:
+    updated = await customer_service.update(db, customer_id, payload)
+    return CustomerResponse.model_validate(updated)
 
 
 @router.delete(
@@ -125,16 +90,7 @@ async def update_customer(
 )
 async def delete_customer(
     customer_id: uuid.UUID,
+    db: DatabaseSession,
     admin=Depends(require_admin),
-    db: AsyncSession = Depends(get_db),
 ):
-    """Delete a customer record (admin-only operation).
-
-    Blocked on: backend/models/customer.py (Customer ORM model)
-    Next step:  from backend.services.customer_service import CustomerService
-                await CustomerService(db).delete(customer_id)
-    """
-    raise NotImplementedError(
-        "delete_customer is blocked on backend/models/customer.py — "
-        "implement CustomerService.delete() once the model exists."
-    )
+    await customer_service.delete(db, customer_id)

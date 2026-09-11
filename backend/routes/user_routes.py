@@ -1,38 +1,35 @@
 """
 backend/routes/user_routes.py
 ------------------------------
-Route stubs for user management endpoints.
+User management endpoints — fully wired to user_service.
 
-All paths match the division document spec:
     GET    /api/users/me
     PATCH  /api/users/me
     POST   /api/users/me/change-password
-    GET    /api/users          (admin only)
-    GET    /api/users/{user_id} (admin only)
-    PATCH  /api/users/{user_id} (admin only)
-    DELETE /api/users/{user_id} (admin only)
-
-Service-layer calls raise NotImplementedError because:
-    - backend/models/user.py (User ORM model) does not yet exist.
+    GET    /api/users                     (admin only)
+    GET    /api/users/{user_id}           (admin only)
+    PATCH  /api/users/{user_id}           (admin only)
+    DELETE /api/users/{user_id}           (admin only)
 """
 
 import uuid
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.middleware.auth_middleware import (
-    get_current_user,
-    get_db,
-    require_admin,
-)
-from backend.schemas.user_schema import ChangePasswordRequest, UserResponse, UserUpdate
+from database.session import get_db_session
+from middleware.auth_middleware import get_current_user, require_admin
+from schemas.user_schema import ChangePasswordRequest, UserResponse, UserUpdate
+from services.user_service import user_service
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
+DatabaseSession = Annotated[AsyncSession, Depends(get_db_session)]
+
 
 # ---------------------------------------------------------------------------
-# Authenticated user's own profile
+# Own profile endpoints
 # ---------------------------------------------------------------------------
 
 
@@ -43,16 +40,8 @@ router = APIRouter(prefix="/api/users", tags=["Users"])
 )
 async def get_my_profile(
     current_user=Depends(get_current_user),
-):
-    """Return the authenticated user's own profile.
-
-    Blocked on: backend/models/user.py (User ORM model)
-    Next step:  return current_user  (once get_current_user() returns a real User)
-    """
-    raise NotImplementedError(
-        "get_my_profile is blocked on backend/models/user.py — "
-        "once get_current_user() returns a real User, simply return current_user."
-    )
+) -> UserResponse:
+    return UserResponse.model_validate(current_user)
 
 
 @router.patch(
@@ -62,19 +51,11 @@ async def get_my_profile(
 )
 async def update_my_profile(
     payload: UserUpdate,
+    db: DatabaseSession,
     current_user=Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Update the authenticated user's own full_name or email.
-
-    Blocked on: backend/models/user.py (User ORM model)
-    Next step:  from backend.services.user_service import UserService
-                return await UserService(db).update_profile(current_user.id, payload)
-    """
-    raise NotImplementedError(
-        "update_my_profile is blocked on backend/models/user.py — "
-        "implement UserService.update_profile() once the model exists."
-    )
+) -> UserResponse:
+    updated = await user_service.update_profile(db, current_user.id, payload)
+    return UserResponse.model_validate(updated)
 
 
 @router.post(
@@ -84,23 +65,14 @@ async def update_my_profile(
 )
 async def change_my_password(
     payload: ChangePasswordRequest,
+    db: DatabaseSession,
     current_user=Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
 ):
-    """Verify the current password and set a new one.
-
-    Blocked on: backend/models/user.py (User ORM model)
-    Next step:  from backend.services.user_service import UserService
-                await UserService(db).change_password(current_user.id, payload)
-    """
-    raise NotImplementedError(
-        "change_my_password is blocked on backend/models/user.py — "
-        "implement UserService.change_password() once the model exists."
-    )
+    await user_service.change_password(db, current_user.id, payload)
 
 
 # ---------------------------------------------------------------------------
-# Admin-only user management
+# Admin-only management
 # ---------------------------------------------------------------------------
 
 
@@ -110,19 +82,11 @@ async def change_my_password(
     summary="List all users (admin only)",
 )
 async def list_users(
+    db: DatabaseSession,
     admin=Depends(require_admin),
-    db: AsyncSession = Depends(get_db),
-):
-    """Return a list of all registered users.
-
-    Blocked on: backend/models/user.py (User ORM model)
-    Next step:  from backend.services.user_service import UserService
-                return await UserService(db).list_users()
-    """
-    raise NotImplementedError(
-        "list_users is blocked on backend/models/user.py — "
-        "implement UserService.list_users() once the model exists."
-    )
+) -> list[UserResponse]:
+    users = await user_service.list_users(db)
+    return [UserResponse.model_validate(u) for u in users]
 
 
 @router.get(
@@ -132,19 +96,11 @@ async def list_users(
 )
 async def get_user(
     user_id: uuid.UUID,
+    db: DatabaseSession,
     admin=Depends(require_admin),
-    db: AsyncSession = Depends(get_db),
-):
-    """Return a single user by UUID.
-
-    Blocked on: backend/models/user.py (User ORM model)
-    Next step:  from backend.services.user_service import UserService
-                return await UserService(db).get_user(user_id)
-    """
-    raise NotImplementedError(
-        "get_user is blocked on backend/models/user.py — "
-        "implement UserService.get_user() once the model exists."
-    )
+) -> UserResponse:
+    user = await user_service.get_by_id(db, user_id)
+    return UserResponse.model_validate(user)
 
 
 @router.patch(
@@ -155,19 +111,11 @@ async def get_user(
 async def update_user(
     user_id: uuid.UUID,
     payload: UserUpdate,
+    db: DatabaseSession,
     admin=Depends(require_admin),
-    db: AsyncSession = Depends(get_db),
-):
-    """Update any user's profile (admin-only operation).
-
-    Blocked on: backend/models/user.py (User ORM model)
-    Next step:  from backend.services.user_service import UserService
-                return await UserService(db).update_user(user_id, payload)
-    """
-    raise NotImplementedError(
-        "update_user is blocked on backend/models/user.py — "
-        "implement UserService.update_user() once the model exists."
-    )
+) -> UserResponse:
+    updated = await user_service.update_user(db, user_id, payload)
+    return UserResponse.model_validate(updated)
 
 
 @router.delete(
@@ -177,16 +125,7 @@ async def update_user(
 )
 async def delete_user(
     user_id: uuid.UUID,
+    db: DatabaseSession,
     admin=Depends(require_admin),
-    db: AsyncSession = Depends(get_db),
 ):
-    """Soft-delete or hard-delete a user (admin-only operation).
-
-    Blocked on: backend/models/user.py (User ORM model)
-    Next step:  from backend.services.user_service import UserService
-                await UserService(db).delete_user(user_id)
-    """
-    raise NotImplementedError(
-        "delete_user is blocked on backend/models/user.py — "
-        "implement UserService.delete_user() once the model exists."
-    )
+    await user_service.delete_user(db, user_id)

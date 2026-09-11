@@ -35,6 +35,18 @@ app.add_middleware(
 
 app.include_router(activity_log_router)
 
+from routes.auth_routes import router as auth_router
+from routes.customer_routes import router as customer_router
+from routes.purchase_routes import router as purchase_router
+from routes.supplier_routes import router as supplier_router
+from routes.user_routes import router as user_router
+
+app.include_router(auth_router)
+app.include_router(customer_router)
+app.include_router(purchase_router)
+app.include_router(supplier_router)
+app.include_router(user_router)
+
 
 @app.get("/")
 def root():

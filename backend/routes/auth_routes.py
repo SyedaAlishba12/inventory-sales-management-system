@@ -1,32 +1,24 @@
 """
 backend/routes/auth_routes.py
 ------------------------------
-Route stubs for authentication endpoints.
+Authentication endpoints — fully wired to auth_service.
 
-All paths match the division document spec:
     POST /api/auth/signup
     POST /api/auth/login
     POST /api/auth/refresh
-    POST /api/auth/logout
+    POST /api/auth/logout        (stateless — token revocation is a TODO)
     POST /api/auth/forgot-password
     POST /api/auth/reset-password
-
-Service-layer calls raise NotImplementedError because:
-    - backend/models/user.py (User ORM model) does not yet exist.
-    - Without the User model there is no service implementation possible.
-
-When backend/models/user.py lands:
-    1. Create backend/services/auth_service.py with real business logic.
-    2. Replace each NotImplementedError block with a service call.
-    3. Remove the NotImplementedError import if no longer needed.
 """
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, status
-from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.middleware.auth_middleware import get_db, get_current_user
-from backend.schemas.auth_schema import (
+from database.session import get_db_session
+from middleware.auth_middleware import get_current_user
+from schemas.auth_schema import (
     ForgotPasswordRequest,
     LoginRequest,
     RefreshTokenRequest,
@@ -34,9 +26,12 @@ from backend.schemas.auth_schema import (
     SignupRequest,
     TokenResponse,
 )
-from backend.schemas.user_schema import UserResponse
+from schemas.user_schema import UserResponse
+from services.auth_service import auth_service
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+
+DatabaseSession = Annotated[AsyncSession, Depends(get_db_session)]
 
 
 @router.post(
@@ -47,18 +42,10 @@ router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 )
 async def signup(
     payload: SignupRequest,
-    db: AsyncSession = Depends(get_db),
-):
-    """Register a new user account.
-
-    Blocked on: backend/models/user.py (User ORM model)
-    Next step:  from backend.services.auth_service import AuthService
-                return await AuthService(db).signup(payload)
-    """
-    raise NotImplementedError(
-        "signup is blocked on backend/models/user.py — "
-        "implement AuthService.signup() once the model exists."
-    )
+    db: DatabaseSession,
+) -> UserResponse:
+    user = await auth_service.signup(db, payload)
+    return UserResponse.model_validate(user)
 
 
 @router.post(
@@ -68,18 +55,9 @@ async def signup(
 )
 async def login(
     payload: LoginRequest,
-    db: AsyncSession = Depends(get_db),
-):
-    """Authenticate with email + password and return access + refresh tokens.
-
-    Blocked on: backend/models/user.py (User ORM model)
-    Next step:  from backend.services.auth_service import AuthService
-                return await AuthService(db).login(payload)
-    """
-    raise NotImplementedError(
-        "login is blocked on backend/models/user.py — "
-        "implement AuthService.login() once the model exists."
-    )
+    db: DatabaseSession,
+) -> TokenResponse:
+    return await auth_service.login(db, payload)
 
 
 @router.post(
@@ -89,18 +67,9 @@ async def login(
 )
 async def refresh_token(
     payload: RefreshTokenRequest,
-    db: AsyncSession = Depends(get_db),
-):
-    """Validate the supplied refresh token and issue a new access token.
-
-    Blocked on: backend/models/user.py (User ORM model)
-    Next step:  from backend.services.auth_service import AuthService
-                return await AuthService(db).refresh(payload.refresh_token)
-    """
-    raise NotImplementedError(
-        "refresh_token is blocked on backend/models/user.py — "
-        "implement AuthService.refresh() once the model exists."
-    )
+    db: DatabaseSession,
+) -> TokenResponse:
+    return await auth_service.refresh(db, payload.refresh_token)
 
 
 @router.post(
@@ -110,20 +79,13 @@ async def refresh_token(
 )
 async def logout(
     current_user=Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
 ):
-    """Log out the currently authenticated user.
+    """Stateless logout — client must discard tokens on 204.
 
-    Blocked on: backend/models/user.py (User ORM model)
-    Note: get_current_user() itself also raises NotImplementedError until
-          the User model exists, so this will fail at the dependency layer.
-    Next step:  from backend.services.auth_service import AuthService
-                await AuthService(db).logout(current_user)
+    TODO: Once a Redis token-blocklist or refresh-token table is added,
+          blocklist the jti claim here before returning.
     """
-    raise NotImplementedError(
-        "logout is blocked on backend/models/user.py — "
-        "implement AuthService.logout() once the model exists."
-    )
+    return
 
 
 @router.post(
@@ -133,21 +95,9 @@ async def logout(
 )
 async def forgot_password(
     payload: ForgotPasswordRequest,
-    db: AsyncSession = Depends(get_db),
+    db: DatabaseSession,
 ):
-    """Trigger a password-reset email for the given address.
-
-    Always returns 202 regardless of whether the email exists in the system,
-    to avoid user enumeration.
-
-    Blocked on: backend/models/user.py (User ORM model)
-    Next step:  from backend.services.auth_service import AuthService
-                await AuthService(db).forgot_password(payload.email)
-    """
-    raise NotImplementedError(
-        "forgot_password is blocked on backend/models/user.py — "
-        "implement AuthService.forgot_password() once the model exists."
-    )
+    await auth_service.forgot_password(db, payload.email)
 
 
 @router.post(
@@ -157,15 +107,6 @@ async def forgot_password(
 )
 async def reset_password(
     payload: ResetPasswordRequest,
-    db: AsyncSession = Depends(get_db),
+    db: DatabaseSession,
 ):
-    """Validate the reset token and update the user's password.
-
-    Blocked on: backend/models/user.py (User ORM model)
-    Next step:  from backend.services.auth_service import AuthService
-                await AuthService(db).reset_password(payload)
-    """
-    raise NotImplementedError(
-        "reset_password is blocked on backend/models/user.py — "
-        "implement AuthService.reset_password() once the model exists."
-    )
+    await auth_service.reset_password(db, payload)

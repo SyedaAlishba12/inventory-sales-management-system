@@ -81,10 +81,10 @@ class PurchaseUpdate(BaseModel):
     individually through this schema — that requires a dedicated item endpoint.
     """
 
-    status: str | None = Field(
+    payment_status: str | None = Field(
         default=None,
-        pattern="^(pending|received|cancelled)$",
-        description="New status for the purchase order.",
+        pattern="^(pending|paid|partial)$",
+        description="New payment status for the purchase order.",
     )
     notes: str | None = Field(default=None, max_length=500)
 
@@ -94,7 +94,8 @@ class PurchaseResponse(BaseModel):
 
     id: UUID
     supplier_id: UUID
-    status: str
+    payment_status: str
+    purchase_status: str
     total_amount: Decimal
     notes: str | None
     items: list[PurchaseItemResponse]

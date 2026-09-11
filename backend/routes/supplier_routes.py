@@ -1,32 +1,29 @@
 """
 backend/routes/supplier_routes.py
 -----------------------------------
-Route stubs for supplier management endpoints.
+Supplier management endpoints — fully wired to supplier_service.
 
-All paths match the division document spec:
     POST   /api/suppliers
     GET    /api/suppliers
     GET    /api/suppliers/{supplier_id}
     PATCH  /api/suppliers/{supplier_id}
-    DELETE /api/suppliers/{supplier_id}
-
-Service-layer calls raise NotImplementedError because:
-    - backend/models/supplier.py (Supplier ORM model) does not yet exist.
+    DELETE /api/suppliers/{supplier_id}   (admin only)
 """
 
 import uuid
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.middleware.auth_middleware import get_db, require_admin, require_staff
-from backend.schemas.supplier_schema import (
-    SupplierCreate,
-    SupplierResponse,
-    SupplierUpdate,
-)
+from database.session import get_db_session
+from middleware.auth_middleware import require_admin, require_staff
+from schemas.supplier_schema import SupplierCreate, SupplierResponse, SupplierUpdate
+from services.supplier_service import supplier_service
 
 router = APIRouter(prefix="/api/suppliers", tags=["Suppliers"])
+
+DatabaseSession = Annotated[AsyncSession, Depends(get_db_session)]
 
 
 @router.post(
@@ -37,19 +34,11 @@ router = APIRouter(prefix="/api/suppliers", tags=["Suppliers"])
 )
 async def create_supplier(
     payload: SupplierCreate,
+    db: DatabaseSession,
     staff=Depends(require_staff),
-    db: AsyncSession = Depends(get_db),
-):
-    """Create a new supplier record.
-
-    Blocked on: backend/models/supplier.py (Supplier ORM model)
-    Next step:  from backend.services.supplier_service import SupplierService
-                return await SupplierService(db).create(payload)
-    """
-    raise NotImplementedError(
-        "create_supplier is blocked on backend/models/supplier.py — "
-        "implement SupplierService.create() once the model exists."
-    )
+) -> SupplierResponse:
+    created = await supplier_service.create(db, payload)
+    return SupplierResponse.model_validate(created)
 
 
 @router.get(
@@ -58,19 +47,11 @@ async def create_supplier(
     summary="List all suppliers",
 )
 async def list_suppliers(
+    db: DatabaseSession,
     staff=Depends(require_staff),
-    db: AsyncSession = Depends(get_db),
-):
-    """Return a list of all suppliers.
-
-    Blocked on: backend/models/supplier.py (Supplier ORM model)
-    Next step:  from backend.services.supplier_service import SupplierService
-                return await SupplierService(db).list_all()
-    """
-    raise NotImplementedError(
-        "list_suppliers is blocked on backend/models/supplier.py — "
-        "implement SupplierService.list_all() once the model exists."
-    )
+) -> list[SupplierResponse]:
+    suppliers = await supplier_service.list_all(db)
+    return [SupplierResponse.model_validate(s) for s in suppliers]
 
 
 @router.get(
@@ -80,19 +61,11 @@ async def list_suppliers(
 )
 async def get_supplier(
     supplier_id: uuid.UUID,
+    db: DatabaseSession,
     staff=Depends(require_staff),
-    db: AsyncSession = Depends(get_db),
-):
-    """Return a single supplier by UUID.
-
-    Blocked on: backend/models/supplier.py (Supplier ORM model)
-    Next step:  from backend.services.supplier_service import SupplierService
-                return await SupplierService(db).get(supplier_id)
-    """
-    raise NotImplementedError(
-        "get_supplier is blocked on backend/models/supplier.py — "
-        "implement SupplierService.get() once the model exists."
-    )
+) -> SupplierResponse:
+    supplier = await supplier_service.get(db, supplier_id)
+    return SupplierResponse.model_validate(supplier)
 
 
 @router.patch(
@@ -103,19 +76,11 @@ async def get_supplier(
 async def update_supplier(
     supplier_id: uuid.UUID,
     payload: SupplierUpdate,
+    db: DatabaseSession,
     staff=Depends(require_staff),
-    db: AsyncSession = Depends(get_db),
-):
-    """Apply a partial update to a supplier record.
-
-    Blocked on: backend/models/supplier.py (Supplier ORM model)
-    Next step:  from backend.services.supplier_service import SupplierService
-                return await SupplierService(db).update(supplier_id, payload)
-    """
-    raise NotImplementedError(
-        "update_supplier is blocked on backend/models/supplier.py — "
-        "implement SupplierService.update() once the model exists."
-    )
+) -> SupplierResponse:
+    updated = await supplier_service.update(db, supplier_id, payload)
+    return SupplierResponse.model_validate(updated)
 
 
 @router.delete(
@@ -125,16 +90,7 @@ async def update_supplier(
 )
 async def delete_supplier(
     supplier_id: uuid.UUID,
+    db: DatabaseSession,
     admin=Depends(require_admin),
-    db: AsyncSession = Depends(get_db),
 ):
-    """Delete a supplier record (admin-only operation).
-
-    Blocked on: backend/models/supplier.py (Supplier ORM model)
-    Next step:  from backend.services.supplier_service import SupplierService
-                await SupplierService(db).delete(supplier_id)
-    """
-    raise NotImplementedError(
-        "delete_supplier is blocked on backend/models/supplier.py — "
-        "implement SupplierService.delete() once the model exists."
-    )
+    await supplier_service.delete(db, supplier_id)
