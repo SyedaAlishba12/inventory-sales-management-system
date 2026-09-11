@@ -55,9 +55,11 @@ generate and order the final Alembic revisions after the team models are
 integrated; this module therefore does not introduce a conflicting standalone
 migration.
 
-The ORM relationship will be connected after `backend/models/user.py` exists.
-The agreed names are `ActivityLog.user` and `User.activity_logs`, linked with
-`back_populates`. The database foreign key remains fully specified meanwhile.
+The Sayeel-owned side is implemented as `ActivityLog.user`, with
+`back_populates="activity_logs"`. Taha must add the matching
+`User.activity_logs` relationship in `backend/models/user.py`. The test suite
+uses a minimal User contract until Taha's branch is integrated, avoiding a
+duplicate production User model while still verifying the relationship.
 
 ## Backend contract
 
