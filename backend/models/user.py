@@ -64,6 +64,12 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         "InventoryMovement", back_populates="user"
     )
 
+    activity_logs: Mapped[list["ActivityLog"]] = relationship(
+        "ActivityLog",
+        back_populates="user",
+        passive_deletes=True,
+    )
+
     # Required by Zainab's notification.py
     # (it declares: user = relationship("User", back_populates="notifications"))
     notifications: Mapped[list] = relationship(

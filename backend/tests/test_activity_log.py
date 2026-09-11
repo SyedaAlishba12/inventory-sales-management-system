@@ -51,9 +51,8 @@ async def session_factory() -> AsyncIterator[async_sessionmaker[AsyncSession]]:
     database_engine = create_database_engine(settings)
     async with database_engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
-<<<<<<< HEAD
         await connection.execute(
-            insert(users_table).values(
+            insert(User).values(
                 id=TEST_USER_ID,
                 full_name="Test User",
                 email="test@example.com",
@@ -62,9 +61,6 @@ async def session_factory() -> AsyncIterator[async_sessionmaker[AsyncSession]]:
                 is_active=True,
             )
         )
-=======
-        await connection.execute(insert(User).values(id=TEST_USER_ID))
->>>>>>> origin/develop
 
     factory = create_session_factory(database_engine)
     try:
