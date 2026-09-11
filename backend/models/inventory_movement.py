@@ -9,7 +9,7 @@ from database.base import Base
 
 class InventoryMovement(Base):
     """Audit trail model recording every stock change (In, Out, Damaged, Adjustment)."""
-    
+
     __tablename__ = "inventory_movements"
 
     # Primary Key using native PostgreSQL UUID
@@ -28,7 +28,7 @@ class InventoryMovement(Base):
         index=True,
     )
 
-    # Foreign Key linking to Taha's User model (User performing the action)
+    # Foreign Key linking to User
     user_id = Column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="RESTRICT", onupdate="CASCADE"),
@@ -37,7 +37,12 @@ class InventoryMovement(Base):
     )
 
     # Movement details
-    movement_type = Column(String(50), nullable=False, index=True)  # STOCK_IN, STOCK_OUT, DAMAGED, ADJUSTMENT
+    movement_type = Column(
+        String(50),
+        nullable=False,
+        index=True,
+    )  # STOCK_IN, STOCK_OUT, DAMAGED, ADJUSTMENT
+
     quantity = Column(Integer, nullable=False)
     previous_stock = Column(Integer, nullable=False)
     new_stock = Column(Integer, nullable=False)
@@ -52,10 +57,16 @@ class InventoryMovement(Base):
     )
 
     # Relationships: Many-to-one with Product
-    product = relationship("Product", back_populates="inventory_movements")
+    product = relationship(
+        "Product",
+        back_populates="inventory_movements",
+    )
 
-    # Relationships: Many-to-one with User (Taha's model)
-    user = relationship("User", back_populates="inventory_movements")
+    # Relationships: Many-to-one with User
+    user = relationship(
+        "User",
+        back_populates="inventory_movements",
+    )
 
     def __repr__(self) -> str:
         return (

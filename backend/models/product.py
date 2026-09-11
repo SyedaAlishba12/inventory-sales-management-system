@@ -1,6 +1,5 @@
 import uuid
 from datetime import datetime, timezone
-from decimal import Decimal
 from sqlalchemy import Column, String, Integer, Numeric, ForeignKey, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
@@ -9,8 +8,8 @@ from database.base import Base
 
 
 class Product(Base):
-    """Product model managing inventory items, pricing, and stock limits."""
-    
+    """Product model managing product details, pricing, and stock limits."""
+
     __tablename__ = "products"
 
     # Primary Key using native PostgreSQL UUID
@@ -32,9 +31,9 @@ class Product(Base):
     # Product attributes
     name = Column(String(255), nullable=False, index=True)
     sku = Column(String(100), nullable=False, unique=True, index=True)
+    description = Column(String(1000), nullable=True)
     selling_price = Column(Numeric(10, 2), nullable=False)
     cost_price = Column(Numeric(10, 2), nullable=False)
-    stock_quantity = Column(Integer, nullable=False, default=0)
     min_stock_level = Column(Integer, nullable=False, default=5)
     image_url = Column(String(500), nullable=True)
 
@@ -66,12 +65,19 @@ class Product(Base):
     inventory_movements = relationship(
         "InventoryMovement",
         back_populates="product",
-        cascade="all, delete-orphan",
     )
 
-    # Cross-module external relationships (referenced by Taha's PurchaseItem and Fatima's SaleItem)
+    # Relationships: One-to-many with Notifications
+    notifications = relationship(
+        "Notification",
+        back_populates="product",
+    )
+
+    # Cross-module external relationships
+    # These models are owned by Taha and Fatima.
     purchase_items = relationship("PurchaseItem", back_populates="product")
     sale_items = relationship("SaleItem", back_populates="product")
 
     def __repr__(self) -> str:
         return f"Product(id={self.id!r}, name={self.name!r}, sku={self.sku!r})"
+
