@@ -39,6 +39,11 @@ class SaleItem(UUIDPrimaryKeyMixin, Base):
 
     sale: Mapped["Sale"] = relationship("Sale", back_populates="items")
 
+    product: Mapped["Product"] = relationship(
+    "Product",
+    back_populates="sale_items",
+)
+
     def __repr__(self) -> str:
         return (
             f"SaleItem(id={self.id!r}, sale_id={self.sale_id!r}, "
