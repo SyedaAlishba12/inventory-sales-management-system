@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 from math import ceil
 
 from sqlalchemy import Select, func, select
@@ -10,8 +10,9 @@ from sqlalchemy.orm import selectinload
 
 from models.sale import Sale, SaleStatus
 from models.sale_item import SaleItem
-from schemas.sale import SaleCreate, SaleItemCreate
+from schemas.sale import SaleCreate
 from services.activity_log_service import activity_log_service
+from services.pos_service import calculate_totals
 
 # TODO: swap in Zainab's real inventory service once her products/inventory
 # PR is merged (expects something like inventory_service.record_stock_out(...)).
@@ -22,36 +23,11 @@ async def _decrease_stock(
     return None
 
 
-def _round2(value: Decimal) -> Decimal:
-    return value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-
 class SalesService:
     async def _generate_invoice_number(self, session: AsyncSession) -> str:
         count_stmt = select(func.count()).select_from(Sale)
         total = int((await session.execute(count_stmt)).scalar_one())
         return f"INV-{total + 1:05d}"
-
-    def _calculate_totals(
-        self,
-        items: list[SaleItemCreate],
-        *,
-        discount: Decimal,
-        is_percent_discount: bool,
-        tax_rate: Decimal,
-    ) -> tuple[Decimal, Decimal, Decimal, Decimal, list[Decimal]]:
-        line_subtotals = [
-            _round2(item.unit_price * item.quantity - item.item_discount) for item in items
-        ]
-        subtotal = _round2(sum(line_subtotals, Decimal("0")))
-        discount_amount = (
-            _round2(subtotal * discount / 100) if is_percent_discount else _round2(discount)
-        )
-        discount_amount = min(discount_amount, subtotal)
-        after_discount = subtotal - discount_amount
-        tax_amount = _round2(after_discount * tax_rate / 100)
-        total = after_discount + tax_amount
-        return subtotal, discount_amount, tax_amount, total, line_subtotals
 
     async def complete_sale(
         self,
@@ -62,7 +38,7 @@ class SalesService:
     ) -> Sale:
         """POS checkout -> Sale + SaleItems -> stock decrease -> activity log."""
 
-        subtotal, discount_amount, tax_amount, total, line_subtotals = self._calculate_totals(
+        subtotal, discount_amount, tax_amount, total, line_subtotals = calculate_totals(
             payload.items,
             discount=payload.discount,
             is_percent_discount=payload.is_percent_discount,
