@@ -5,5 +5,25 @@ from schemas.activity_log import (
     ActivityLogListResponse,
     ActivityLogRead,
 )
+from schemas.sale import (
+    PaymentMethod,
+    SaleCreate,
+    SaleItemCreate,
+    SaleItemRead,
+    SaleListResponse,
+    SaleRead,
+    SaleStatus,
+)
 
-__all__ = ["ActivityLogCreate", "ActivityLogListResponse", "ActivityLogRead"]
+__all__ = [
+    "ActivityLogCreate",
+    "ActivityLogListResponse",
+    "ActivityLogRead",
+    "PaymentMethod",
+    "SaleCreate",
+    "SaleItemCreate",
+    "SaleItemRead",
+    "SaleListResponse",
+    "SaleRead",
+    "SaleStatus",
+]
