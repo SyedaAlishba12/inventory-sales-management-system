@@ -20,6 +20,7 @@ export interface ApiErrorResponse {
 }
 
 export * from "./api";
+export * from "./auth";
 export * from "./customer";
 export * from "./notification";
 export * from "./pos";
