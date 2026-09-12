@@ -8,8 +8,8 @@ from database.base import Base
 
 
 class Notification(Base):
-    """Notification model for handling system alerts (low stock, sales, purchases)."""
-    
+    """Notification model for handling system alerts."""
+
     __tablename__ = "notifications"
 
     # Primary Key using native PostgreSQL UUID
@@ -20,10 +20,20 @@ class Notification(Base):
         index=True,
     )
 
-    # Foreign Key linking to User (Nullable for broadcast alerts to all staff/admins)
+    # Foreign Key linking to User
+    # Nullable for broadcast notifications
     user_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE", onupdate="CASCADE"),
+        ForeignKey("users.id", ondelete="SET NULL", onupdate="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+
+    # Foreign Key linking to Product
+    # Nullable because not every notification is product-specific
+    product_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("products.id", ondelete="SET NULL", onupdate="CASCADE"),
         nullable=True,
         index=True,
     )
@@ -32,7 +42,11 @@ class Notification(Base):
     title = Column(String(255), nullable=False)
     message = Column(Text, nullable=False)
     is_read = Column(Boolean, default=False, nullable=False)
-    type = Column(String(50), nullable=False, index=True)  # LOW_STOCK, MULTIPLE_LOW_STOCK, NEW_SALE, PURCHASE_RECEIVED
+    type = Column(
+        String(50),
+        nullable=False,
+        index=True,
+    )  # LOW_STOCK, MULTIPLE_LOW_STOCK, NEW_SALE, PURCHASE_RECEIVED
 
     # UTC Timestamp
     created_at = Column(
@@ -42,8 +56,17 @@ class Notification(Base):
         index=True,
     )
 
-    # Relationships: Many-to-one with User (Optional/Nullable)
-    user = relationship("User", back_populates="notifications")
+    # Relationships: Many-to-one with User
+    user = relationship(
+        "User",
+        back_populates="notifications",
+    )
+
+    # Relationships: Many-to-one with Product
+    product = relationship(
+        "Product",
+        back_populates="notifications",
+    )
 
     def __repr__(self) -> str:
         return (
