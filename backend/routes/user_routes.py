@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.session import get_db_session
 from middleware.auth_middleware import get_current_user, require_admin
-from schemas.user_schema import ChangePasswordRequest, UserResponse, UserUpdate
+from schemas.user_schema import ChangePasswordRequest, UserResponse, UserUpdate, UserCreate
 from services.user_service import user_service
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
@@ -75,6 +75,19 @@ async def change_my_password(
 # Admin-only management
 # ---------------------------------------------------------------------------
 
+@router.post(
+    "",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new user (admin only)",
+)
+async def create_user(
+    payload: UserCreate,
+    db: DatabaseSession,
+    admin=Depends(require_admin),
+) -> UserResponse:
+    user = await user_service.create_user(db, payload, created_by=admin.id)
+    return UserResponse.model_validate(user)
 
 @router.get(
     "",

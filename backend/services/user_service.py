@@ -17,7 +17,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.security import hash_password, verify_password
 from models.user import User
-from schemas.user_schema import ChangePasswordRequest, UserUpdate
+from schemas.user_schema import ChangePasswordRequest, UserUpdate, UserCreate
+from services.activity_log_service import activity_log_service
 
 
 class UserService:
@@ -79,6 +80,40 @@ class UserService:
     # ------------------------------------------------------------------
     # admin update
     # ------------------------------------------------------------------
+
+    async def create_user(
+        self, db: AsyncSession, payload: UserCreate, created_by: uuid.UUID
+    ) -> User:
+        """Create a user (admin only) and log the action."""
+        conflict = (
+            await db.execute(select(User).where(User.email == payload.email))
+        ).scalar_one_or_none()
+        if conflict:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered",
+            )
+            
+        new_user = User(
+            full_name=payload.full_name,
+            email=payload.email,
+            password_hash=hash_password(payload.password),
+            role=payload.role,
+        )
+        db.add(new_user)
+        await db.flush()
+        
+        await activity_log_service.log(
+            db,
+            action="user.created",
+            entity_type="user",
+            entity_id=new_user.id,
+            user_id=created_by,
+            description=f"Admin created user {new_user.email}"
+        )
+        await db.commit()
+        await db.refresh(new_user)
+        return new_user
 
     async def update_user(
         self, db: AsyncSession, user_id: uuid.UUID, payload: UserUpdate

@@ -35,7 +35,7 @@ export default function UsersPage() {
   // Add User State
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [addForm, setAddForm] = useState({ full_name: "", email: "", password: "" });
+  const [addForm, setAddForm] = useState({ full_name: "", email: "", password: "", role: "staff" });
   const [addError, setAddError] = useState<string | null>(null);
 
   // Toggle Active State
@@ -66,11 +66,11 @@ export default function UsersPage() {
     setIsSubmitting(true);
     
     try {
-      // Create user via auth signup endpoint
-      await apiClient.post("/api/auth/signup", addForm);
-      toastUtils.success("Staff member created successfully");
+      // Create user via admin endpoint
+      await apiClient.post("/api/users", addForm);
+      toastUtils.success("User created successfully");
       setIsAddOpen(false);
-      setAddForm({ full_name: "", email: "", password: "" });
+      setAddForm({ full_name: "", email: "", password: "", role: "staff" });
       fetchUsers();
     } catch (err) {
       setAddError(getErrorMessage(err));
@@ -242,6 +242,20 @@ export default function UsersPage() {
                   required
                 />
                 <p className="text-xs text-muted-foreground">User will use this password to log in.</p>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="staff-role">Role <span className="text-destructive">*</span></Label>
+                <select
+                  id="staff-role"
+                  value={addForm.role}
+                  onChange={(e) => setAddForm({ ...addForm, role: e.target.value })}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  required
+                >
+                  <option value="staff">Staff</option>
+                  <option value="admin">Admin</option>
+                </select>
               </div>
 
               <div className="mt-2 flex justify-end gap-3">
