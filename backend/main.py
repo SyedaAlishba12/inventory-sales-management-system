@@ -6,8 +6,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from common.config import get_settings
 from database.session import dispose_database
+
 from routes.activity_log_routes import router as activity_log_router
 from routes.sales_routes import router as sales_router
+from routes.product_routes import router as product_router
+from routes.category_routes import router as category_router
+from routes.inventory_routes import router as inventory_router
+from routes.notification_routes import router as notification_router
 
 settings = get_settings()
 APP_NAME = settings.app_name
@@ -36,8 +41,15 @@ app.add_middleware(
 )
 
 app.include_router(activity_log_router)
+<<<<<<< Updated upstream
 app.include_router(sales_router)
 
+=======
+app.include_router(product_routes.router)
+app.include_router(category_routes.router)
+app.include_router(inventory_routes.router)
+app.include_router(notification_routes.router)
+>>>>>>> Stashed changes
 
 @app.get("/")
 def root():
