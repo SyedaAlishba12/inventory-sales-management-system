@@ -23,10 +23,10 @@ from database.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
 
 class UserRole(str, enum.Enum):
-    """Allowed role values — stored as strings in PostgreSQL."""
+    """Allowed user roles."""
 
-    ADMIN = "admin"
-    STAFF = "staff"
+    ADMIN = "ADMIN"
+    STAFF = "STAFF"
 
 
 class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -42,13 +42,20 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[UserRole] = mapped_column(
-        Enum(UserRole, name="userrole", values_callable=lambda e: [v.value for v in e]),
+        Enum(
+            UserRole,
+            name="user_role",
+            values_callable=lambda e: [member.value for member in e],
+        ),
         nullable=False,
         default=UserRole.STAFF,
         server_default=UserRole.STAFF.value,
     )
     is_active: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=True, server_default="true"
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default="true",
     )
 
     # --- Relationships -------------------------------------------------------
@@ -74,6 +81,11 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # (it declares: user = relationship("User", back_populates="notifications"))
     notifications: Mapped[list] = relationship(
         "Notification", back_populates="user"
+    )
+
+    sales: Mapped[list["Sale"]] = relationship(
+        "Sale",
+        back_populates="user",
     )
 
     def __repr__(self) -> str:

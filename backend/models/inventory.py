@@ -9,8 +9,8 @@ from database.base import Base
 
 class Inventory(Base):
     """Inventory summary model tracking stock counts per product."""
-    
-    __tablename__ = "inventories"
+
+    __tablename__ = "inventory"
 
     # Primary Key using native PostgreSQL UUID
     id = Column(

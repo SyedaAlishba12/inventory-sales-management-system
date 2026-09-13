@@ -13,10 +13,11 @@ Cross-module note:
     No modification to product.py is needed.
 """
 
+from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import ForeignKey, Integer, Numeric, Uuid
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database.base import Base, UUIDPrimaryKeyMixin
@@ -46,6 +47,11 @@ class PurchaseItem(UUIDPrimaryKeyMixin, Base):
 
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
     cost_price: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
 
     # --- Relationships -------------------------------------------------------
 
@@ -68,3 +74,4 @@ class PurchaseItem(UUIDPrimaryKeyMixin, Base):
             f"PurchaseItem(id={self.id!r}, purchase_id={self.purchase_id!r}, "
             f"product_id={self.product_id!r}, qty={self.quantity!r})"
         )
+

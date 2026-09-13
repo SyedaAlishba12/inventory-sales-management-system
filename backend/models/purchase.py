@@ -21,10 +21,9 @@ from database.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 class PaymentStatus(str, enum.Enum):
     """Payment status of a purchase order."""
 
-    PENDING = "pending"
-    PAID = "paid"
-    PARTIAL = "partial"
-
+    PENDING = "PENDING"
+    PAID = "PAID"
+    PARTIAL = "PARTIAL"
 
 class PurchaseStatus(str, enum.Enum):
     """Fulfillment status of a purchase order."""
