@@ -7,7 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from common.config import get_settings
 from database.session import dispose_database
 from routes.activity_log_routes import router as activity_log_router
-from routes.sales_routes import pos_router, sales_router
+from routes.pos_routes import router as pos_router
+from routes.sales_routes import router as sales_router
 
 settings = get_settings()
 APP_NAME = settings.app_name

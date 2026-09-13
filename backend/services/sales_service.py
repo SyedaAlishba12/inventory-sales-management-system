@@ -14,12 +14,20 @@ from schemas.sale import SaleCreate
 from services.activity_log_service import activity_log_service
 from services.pos_service import calculate_totals
 
-# TODO: swap in Zainab's real inventory service once her products/inventory
-# PR is merged (expects something like inventory_service.record_stock_out(...)).
-# Kept as a no-op stub for now so this module doesn't break on import.
+# TODO: swap in Zainab's real inventory service once her PR (products &
+# inventory) is merged. Keeping this as a stub avoids ImportError for now
+# while everyone else's routes still work with our module.
 async def _decrease_stock(
     session: AsyncSession, *, product_id: uuid.UUID, quantity: int
 ) -> None:
+    return None
+
+
+# TODO: swap in Zainab's real notification_service once her PR merges.
+# Per the task doc: "New sale" is a notification event, and "the relevant
+# modules trigger these events" — meaning Fatima's module (not Zainab's)
+# is responsible for calling this when a sale completes.
+async def _notify_new_sale(session: AsyncSession, *, sale: Sale) -> None:
     return None
 
 
@@ -81,6 +89,10 @@ class SalesService:
             description=f"Staff created Sale #{sale.invoice_number}",
         )
 
+        # "New sale" notification — per the task doc, the module that
+        # experiences the event (us) triggers it, not Zainab's module.
+        await _notify_new_sale(session, sale=sale)
+
         await session.flush()
         await session.refresh(sale, attribute_names=["items"])
         return sale
@@ -117,6 +129,24 @@ class SalesService:
         )
         items = list((await session.execute(stmt)).scalars().all())
         return items, total, ceil(total / page_size) if total else 0
+
+
+    async def checkout(
+        self,
+        session: AsyncSession,
+        *,
+        user_id,
+        payload: SaleCreate,
+    ) -> Sale:
+        """Wraps complete_sale with commit/rollback so both /api/pos/checkout
+        and POST /api/sales (two separate route files) share one code path."""
+        try:
+            sale = await self.complete_sale(session, user_id=user_id, payload=payload)
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        return sale
 
 
 sales_service = SalesService()

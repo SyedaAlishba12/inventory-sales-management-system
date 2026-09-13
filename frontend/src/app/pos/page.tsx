@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { ShoppingCart } from "lucide-react";
 
 import { CartItem, ProductSearch } from "@/components/shared/pos";
-import { PaymentCheckout } from "@/components/checkout/payment-checkout";
+import { PaymentCheckout } from "@/components/pos/payment-checkout";
+import { PosProductGrid } from "@/components/pos/pos-product-grid";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MainLayout } from "@/components/layout/main-layout";
 import { PageHeader } from "@/components/layout/page-header";
@@ -25,6 +26,27 @@ export default function PosPage() {
 
   const [cart, setCart] = useState<CartLine[]>([]);
   const [discount, setDiscount] = useState(0);
+
+  // Browse mode: default product grid shown when the search box is empty.
+  // Doc requirement B: "Browse products" is separate from "Search products".
+  const [browseProducts, setBrowseProducts] = useState<PosProduct[]>([]);
+  const [browseLoading, setBrowseLoading] = useState(true);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setBrowseLoading(true);
+
+    apiClient
+      .get<PosProduct[]>("/api/pos/products", {
+        query: { limit: 12 },
+        signal: controller.signal,
+      })
+      .then(setBrowseProducts)
+      .catch(() => setBrowseProducts([]))
+      .finally(() => setBrowseLoading(false));
+
+    return () => controller.abort();
+  }, []);
 
   // Live product search — hits Zainab's products endpoint via our /api/pos/products
   // proxy (currently a stub, so results are empty until her PR merges).
@@ -78,15 +100,14 @@ export default function PosPage() {
   }
 
   function addTestItem() {
-    // TEMPORARY — for local UI testing only, until Zainab's product search
-    // is wired up. Safe to delete this function and its button once
-    // /api/pos/products returns real data.
+    // TEMPORARY — uses the fixed test product seeded via test_data_seed.sql
+    // (Neon SQL Editor). Safe to delete once Zainab's product search works.
     const testProduct: PosProduct = {
-      id: `test-${Date.now()}`,
-      name: "Wireless Mouse (test item)",
-      sku: "TEST-001",
+      id: "33333333-3333-3333-3333-333333333333",
+      name: "Test Wireless Mouse",
+      sku: "TEST-SKU-001",
       price: 1500,
-      stockQuantity: 10,
+      stockQuantity: 50,
       imageUrl: null,
     };
     addToCart(testProduct);
@@ -156,6 +177,13 @@ export default function PosPage() {
               onSelect={addToCart}
               loading={searching}
             />
+
+            {!searchQuery.trim() && (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Browse products</p>
+                <PosProductGrid products={browseProducts} loading={browseLoading} onSelect={addToCart} />
+              </div>
+            )}
 
             {cart.length === 0 ? (
               <div className="space-y-3">
