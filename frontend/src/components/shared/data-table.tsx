@@ -89,10 +89,10 @@ export function DataTable<TRow>({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border bg-card">
+    <div className="overflow-hidden rounded-xl border border-[#D7E0E3] bg-card">
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-sm">
-          <thead className="bg-muted/70 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <thead className="bg-[#EAF0F2] text-left text-xs font-semibold uppercase tracking-wide text-[#7A8B91]">
             <tr>
               {columns.map((column) => {
                 const activeSort = sort?.columnId === column.id ? sort.direction : null;
@@ -113,7 +113,7 @@ export function DataTable<TRow>({
                       <button
                         type="button"
                         className={cn(
-                          "inline-flex items-center gap-1 rounded outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
+                          "inline-flex items-center gap-1 rounded outline-none hover:text-[#0F4C5C] focus-visible:ring-2 focus-visible:ring-[#78A394]",
                           column.align === "right" && "ml-auto",
                         )}
                         onClick={() => toggleSort(column)}
@@ -129,7 +129,7 @@ export function DataTable<TRow>({
               })}
             </tr>
           </thead>
-          <tbody className="divide-y">
+          <tbody className="divide-y divide-[#D7E0E3]">
             {loading
               ? Array.from({ length: loadingRows }, (_, rowIndex) => (
                   <tr key={`loading-${rowIndex}`}>
@@ -147,15 +147,15 @@ export function DataTable<TRow>({
                     onClick={() => onRowClick?.(row)}
                     onKeyDown={(event) => handleRowKeyDown(event, row)}
                     className={cn(
-                      "transition-colors hover:bg-muted/50",
-                      onRowClick && "cursor-pointer outline-none focus-visible:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                      "transition-colors hover:bg-[#EAF0F2]/50",
+                      onRowClick && "cursor-pointer outline-none focus-visible:bg-[#78A394]/10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#78A394]",
                     )}
                   >
                     {columns.map((column) => (
                       <td
                         key={column.id}
                         className={cn(
-                          "px-4 py-3 text-foreground",
+                          "px-4 py-3 text-[#0F4C5C]",
                           column.align === "center" && "text-center",
                           column.align === "right" && "text-right",
                           column.className,
@@ -170,7 +170,7 @@ export function DataTable<TRow>({
         </table>
       </div>
       {!loading && data.length === 0 ? (
-        <div className="border-t p-4">
+        <div className="border-t border-[#D7E0E3] p-4">
           <EmptyState title={emptyTitle} description={emptyDescription} />
         </div>
       ) : null}

@@ -16,13 +16,13 @@ interface SearchBarProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "ty
 export function SearchBar({ className, onChange, onClear, placeholder = "Search...", value, ...props }: SearchBarProps) {
   return (
     <div className={cn("relative w-full", className)}>
-      <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+      <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[#7A8B91]" />
       <Input
         type="search"
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="pr-10 pl-9 [&::-webkit-search-cancel-button]:hidden"
+        className="border-[#D7E0E3] pr-10 pl-9 [&::-webkit-search-cancel-button]:hidden"
         {...props}
       />
       {value ? (

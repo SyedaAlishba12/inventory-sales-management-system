@@ -39,10 +39,9 @@ class Category(Base):
 
     # Relationships: One category has many products
     products = relationship(
-        "Product",
-        back_populates="category",
-        cascade="all, delete-orphan",
-    )
+    "Product",
+    back_populates="category",
+)
 
     def __repr__(self) -> str:
         return f"Category(id={self.id!r}, name={self.name!r})"

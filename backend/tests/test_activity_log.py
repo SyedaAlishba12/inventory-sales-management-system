@@ -4,20 +4,36 @@ from uuid import UUID, uuid4
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import Column, Table, Uuid, insert
+from sqlalchemy import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.orm import Mapped, relationship
 
 from common.config import Settings
-from database.base import Base
+from database.base import Base, UUIDPrimaryKeyMixin
 from database.session import (
     create_database_engine,
     create_session_factory,
     get_db_session,
 )
-from models.activity_log import ActivityLog
-from routes.activity_log_routes import router
-from schemas.activity_log import ActivityLogCreate
-from services.activity_log_service import activity_log_service
+
+try:
+    from models.user import User
+except ModuleNotFoundError:
+
+    class User(UUIDPrimaryKeyMixin, Base):
+        """Test-only contract used until Taha's User model is merged."""
+
+        __tablename__ = "users"
+
+        activity_logs: Mapped[list["ActivityLog"]] = relationship(
+            back_populates="user"
+        )
+
+
+from models.activity_log import ActivityLog  # noqa: E402
+from routes.activity_log_routes import router  # noqa: E402
+from schemas.activity_log import ActivityLogCreate  # noqa: E402
+from services.activity_log_service import activity_log_service  # noqa: E402
 
 TEST_USER_ID = uuid4()
 PRODUCT_ID = uuid4()
@@ -31,17 +47,9 @@ async def session_factory() -> AsyncIterator[async_sessionmaker[AsyncSession]]:
         database_url="sqlite+aiosqlite:///:memory:",
     )
     database_engine = create_database_engine(settings)
-    users_table = Base.metadata.tables.get("users")
-    if users_table is None:
-        users_table = Table(
-            "users",
-            Base.metadata,
-            Column("id", Uuid(as_uuid=True, native_uuid=True), primary_key=True),
-        )
-
     async with database_engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
-        await connection.execute(insert(users_table).values(id=TEST_USER_ID))
+        await connection.execute(insert(User).values(id=TEST_USER_ID))
 
     factory = create_session_factory(database_engine)
     try:
@@ -85,6 +93,11 @@ def test_activity_log_payload_normalizes_text() -> None:
 def test_activity_log_payload_requires_entity_type_for_entity_id() -> None:
     with pytest.raises(ValueError, match="entity_type is required"):
         ActivityLogCreate(action="product.updated", entity_id=PRODUCT_ID)
+
+
+def test_activity_log_user_relationship_contract() -> None:
+    assert ActivityLog.user.property.back_populates == "activity_logs"
+    assert User.activity_logs.property.back_populates == "user"
 
 
 async def test_service_creates_reads_filters_and_paginates_logs(

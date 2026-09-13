@@ -1,10 +1,14 @@
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text, Uuid, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database.base import Base, UUIDPrimaryKeyMixin
+
+if TYPE_CHECKING:
+    from models.user import User
 
 
 class ActivityLog(UUIDPrimaryKeyMixin, Base):
@@ -34,6 +38,10 @@ class ActivityLog(UUIDPrimaryKeyMixin, Base):
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
+    )
+    user: Mapped["User | None"] = relationship(
+        "User",
+        back_populates="activity_logs",
     )
 
     def __repr__(self) -> str:

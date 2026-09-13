@@ -1,27 +1,42 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  /* Core surfaces */
+  --background: #f3f6f8;
+  --foreground: #1e293b;
   --card: #ffffff;
-  --card-foreground: #0f172a;
-  --muted: #f1f5f9;
+  --card-foreground: #1e293b;
+
+  /* Supporting neutral surface */
+  --muted: #eef2f5;
   --muted-foreground: #64748b;
-  --primary: #0f766e;
+
+  /* Brand / navigation */
+  --primary: #0f4c5c;
   --primary-foreground: #ffffff;
-  --secondary: #e2e8f0;
-  --secondary-foreground: #1e293b;
-  --accent: #ecfdf5;
-  --accent-foreground: #065f46;
-  --danger: #dc2626;
+
+  /* Secondary analytical accent */
+  --secondary: #70588c;
+  --secondary-foreground: #ffffff;
+
+  /* Primary metric / chart accent */
+  --accent: #78a394;
+  --accent-foreground: #ffffff;
+
+  /* Status colors */
+  --danger: #e67e72;
   --danger-foreground: #ffffff;
-  --warning: #d97706;
+
+  --warning: #e67e72;
   --warning-foreground: #ffffff;
-  --success: #15803d;
+
+  --success: #52b788;
   --success-foreground: #ffffff;
+
+  /* Borders / inputs / focus */
   --border: #e2e8f0;
   --input: #cbd5e1;
-  --ring: #14b8a6;
+  --ring: #70588c;
 }
 
 @theme inline {
@@ -75,6 +90,7 @@ textarea {
 }
 
 ::selection {
-  background: #99f6e4;
-  color: #134e4a;
+  background: #70588c;
+  color: #ffffff;
 }
+
