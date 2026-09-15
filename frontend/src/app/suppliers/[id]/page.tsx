@@ -146,7 +146,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
           </Button>
           <div className="flex-1">
             <h1 className="text-2xl font-bold tracking-tight text-[#0F4C5C]">{supplier.name}</h1>
-            <p className="text-sm text-muted-foreground">{supplier.contact_person ? `Contact: ${supplier.contact_person} • ` : ""}{supplier.email || "No email"} • {supplier.phone || "No phone"}</p>
+            <p className="text-sm text-muted-foreground">{supplier.company ? `Company: ${supplier.company} • ` : ""}{supplier.email || "No email"} • {supplier.phone || "No phone"}</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setIsEditOpen(true)}>

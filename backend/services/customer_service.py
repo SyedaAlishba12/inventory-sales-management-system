@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.customer import Customer
 from schemas.customer_schema import CustomerCreate, CustomerUpdate
+from services.activity_log_service import activity_log_service
 
 
 class CustomerService:
@@ -24,7 +25,7 @@ class CustomerService:
     # create
     # ------------------------------------------------------------------
 
-    async def create(self, db: AsyncSession, payload: CustomerCreate) -> Customer:
+    async def create(self, db: AsyncSession, payload: CustomerCreate, user_id: uuid.UUID) -> Customer:
         """Create a new customer.
 
         Raises:
@@ -56,6 +57,15 @@ class CustomerService:
         db.add(customer)
         await db.flush()
         await db.refresh(customer)
+        
+        await activity_log_service.log(
+            db,
+            action="customer.created",
+            entity_type="customer",
+            entity_id=customer.id,
+            user_id=user_id,
+            description=f"Created customer {customer.name}"
+        )
         await db.commit()
         return customer
 
@@ -85,7 +95,7 @@ class CustomerService:
     # ------------------------------------------------------------------
 
     async def update(
-        self, db: AsyncSession, customer_id: uuid.UUID, payload: CustomerUpdate
+        self, db: AsyncSession, customer_id: uuid.UUID, payload: CustomerUpdate, user_id: uuid.UUID
     ) -> Customer:
         """Apply a partial update to a customer.
 
@@ -129,6 +139,15 @@ class CustomerService:
 
         await db.flush()
         await db.refresh(customer)
+        
+        await activity_log_service.log(
+            db,
+            action="customer.updated",
+            entity_type="customer",
+            entity_id=customer.id,
+            user_id=user_id,
+            description=f"Updated customer {customer.name}"
+        )
         await db.commit()
         return customer
 
@@ -136,14 +155,24 @@ class CustomerService:
     # delete
     # ------------------------------------------------------------------
 
-    async def delete(self, db: AsyncSession, customer_id: uuid.UUID) -> None:
+    async def delete(self, db: AsyncSession, customer_id: uuid.UUID, user_id: uuid.UUID) -> None:
         """Hard-delete a customer.
 
         Raises:
             HTTPException 404: If the customer is not found.
         """
         customer = await self.get(db, customer_id)
+        name = customer.name
         await db.delete(customer)
+        
+        await activity_log_service.log(
+            db,
+            action="customer.deleted",
+            entity_type="customer",
+            entity_id=customer_id,
+            user_id=user_id,
+            description=f"Deleted customer {name}"
+        )
         await db.commit()
 
 

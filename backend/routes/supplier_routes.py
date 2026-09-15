@@ -37,7 +37,7 @@ async def create_supplier(
     db: DatabaseSession,
     staff=Depends(require_staff),
 ) -> SupplierResponse:
-    created = await supplier_service.create(db, payload)
+    created = await supplier_service.create(db, payload, user_id=staff.id)
     return SupplierResponse.model_validate(created)
 
 
@@ -79,7 +79,7 @@ async def update_supplier(
     db: DatabaseSession,
     staff=Depends(require_staff),
 ) -> SupplierResponse:
-    updated = await supplier_service.update(db, supplier_id, payload)
+    updated = await supplier_service.update(db, supplier_id, payload, user_id=staff.id)
     return SupplierResponse.model_validate(updated)
 
 
@@ -93,4 +93,4 @@ async def delete_supplier(
     db: DatabaseSession,
     admin=Depends(require_admin),
 ):
-    await supplier_service.delete(db, supplier_id)
+    await supplier_service.delete(db, supplier_id, user_id=admin.id)

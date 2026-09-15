@@ -116,14 +116,24 @@ class UserService:
         return new_user
 
     async def update_user(
-        self, db: AsyncSession, user_id: uuid.UUID, payload: UserUpdate
+        self, db: AsyncSession, user_id: uuid.UUID, payload: UserUpdate, updated_by: uuid.UUID
     ) -> User:
         """Admin update — delegates to update_profile for now.
 
         Admin-specific additional fields (e.g. role, is_active) can be
         added here once the admin schemas are extended.
         """
-        return await self.update_profile(db, user_id, payload)
+        user = await self.update_profile(db, user_id, payload)
+        await activity_log_service.log(
+            db,
+            action="user.updated",
+            entity_type="user",
+            entity_id=user.id,
+            user_id=updated_by,
+            description=f"Admin updated user {user.email}"
+        )
+        await db.commit()
+        return user
 
     # ------------------------------------------------------------------
     # change password
@@ -151,14 +161,24 @@ class UserService:
     # delete (admin)
     # ------------------------------------------------------------------
 
-    async def delete_user(self, db: AsyncSession, user_id: uuid.UUID) -> None:
+    async def delete_user(self, db: AsyncSession, user_id: uuid.UUID, deleted_by: uuid.UUID) -> None:
         """Hard-delete a user by UUID.
 
         Raises:
             HTTPException 404: If the user is not found.
         """
         user = await self.get_by_id(db, user_id)
+        email = user.email
         await db.delete(user)
+        
+        await activity_log_service.log(
+            db,
+            action="user.deleted",
+            entity_type="user",
+            entity_id=user_id,
+            user_id=deleted_by,
+            description=f"Admin deleted user {email}"
+        )
         await db.commit()
 
 

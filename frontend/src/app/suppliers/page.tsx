@@ -73,8 +73,8 @@ export default function SuppliersPage() {
     },
     {
       id: "contact",
-      header: "Contact Person",
-      accessor: "contact_person",
+      header: "Company",
+      accessor: "company",
       sortable: true,
     },
     {

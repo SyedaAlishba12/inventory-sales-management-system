@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.supplier import Supplier
 from schemas.supplier_schema import SupplierCreate, SupplierUpdate
+from services.activity_log_service import activity_log_service
 
 
 class SupplierService:
@@ -24,12 +25,33 @@ class SupplierService:
     # create
     # ------------------------------------------------------------------
 
-    async def create(self, db: AsyncSession, payload: SupplierCreate) -> Supplier:
-        """Create a new supplier."""
+    async def create(self, db: AsyncSession, payload: SupplierCreate, user_id: uuid.UUID) -> Supplier:
+        """Create a new supplier.
+        Raises 409 if phone number already exists.
+        """
+        if payload.phone:
+            conflict = (
+                await db.execute(select(Supplier).where(Supplier.phone == payload.phone))
+            ).scalar_one_or_none()
+            if conflict:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="A supplier with this phone number already exists.",
+                )
+        
         supplier = Supplier(**payload.model_dump())
         db.add(supplier)
         await db.flush()
         await db.refresh(supplier)
+        
+        await activity_log_service.log(
+            db,
+            action="supplier.created",
+            entity_type="supplier",
+            entity_id=supplier.id,
+            user_id=user_id,
+            description=f"Created supplier {supplier.name}"
+        )
         await db.commit()
         return supplier
 
@@ -59,7 +81,7 @@ class SupplierService:
     # ------------------------------------------------------------------
 
     async def update(
-        self, db: AsyncSession, supplier_id: uuid.UUID, payload: SupplierUpdate
+        self, db: AsyncSession, supplier_id: uuid.UUID, payload: SupplierUpdate, user_id: uuid.UUID
     ) -> Supplier:
         """Apply a partial update to a supplier.
 
@@ -74,6 +96,15 @@ class SupplierService:
 
         await db.flush()
         await db.refresh(supplier)
+        
+        await activity_log_service.log(
+            db,
+            action="supplier.updated",
+            entity_type="supplier",
+            entity_id=supplier.id,
+            user_id=user_id,
+            description=f"Updated supplier {supplier.name}"
+        )
         await db.commit()
         return supplier
 
@@ -81,14 +112,24 @@ class SupplierService:
     # delete
     # ------------------------------------------------------------------
 
-    async def delete(self, db: AsyncSession, supplier_id: uuid.UUID) -> None:
+    async def delete(self, db: AsyncSession, supplier_id: uuid.UUID, user_id: uuid.UUID) -> None:
         """Hard-delete a supplier.
 
         Raises:
             HTTPException 404: If the supplier is not found.
         """
         supplier = await self.get(db, supplier_id)
+        name = supplier.name
         await db.delete(supplier)
+        
+        await activity_log_service.log(
+            db,
+            action="supplier.deleted",
+            entity_type="supplier",
+            entity_id=supplier_id,
+            user_id=user_id,
+            description=f"Deleted supplier {name}"
+        )
         await db.commit()
 
 

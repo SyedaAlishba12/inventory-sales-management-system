@@ -127,7 +127,7 @@ async def update_user(
     db: DatabaseSession,
     admin=Depends(require_admin),
 ) -> UserResponse:
-    updated = await user_service.update_user(db, user_id, payload)
+    updated = await user_service.update_user(db, user_id, payload, updated_by=admin.id)
     return UserResponse.model_validate(updated)
 
 
@@ -141,4 +141,4 @@ async def delete_user(
     db: DatabaseSession,
     admin=Depends(require_admin),
 ):
-    await user_service.delete_user(db, user_id)
+    await user_service.delete_user(db, user_id, deleted_by=admin.id)

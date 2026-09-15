@@ -6,20 +6,6 @@ Password hashing and JWT token utilities for the Inventory & Sales Management Sy
 Dependencies (all present in requirements.txt):
     argon2-cffi==25.1.0   — password hashing
     python-jose==3.5.0    — JWT creation / verification
-    python-dotenv==1.2.3  — .env loading for the os.getenv fallback below
-
-NOTE — SECRET_KEY / ALGORITHM config:
-    backend/common/config.py (Sayeel's branch, commit f9788ac) only exposes
-    database and CORS settings.  It does NOT yet have SECRET_KEY or ALGORITHM
-    fields on the Settings class.
-
-    TODO: Once Sayeel adds SECRET_KEY / ALGORITHM to Settings, replace the
-          two os.getenv calls below with:
-              from backend.common.config import get_settings
-              _settings = get_settings()
-              _SECRET_KEY = _settings.secret_key
-              _ALGORITHM  = _settings.algorithm
-          and remove the python-dotenv load_dotenv() call.
 """
 
 import os
@@ -29,38 +15,27 @@ from typing import Any
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerifyMismatchError, VerificationError
-from dotenv import load_dotenv
 from jose import JWTError, jwt
 
+from common.config import get_settings
+
 # ---------------------------------------------------------------------------
-# Config — env-var fallback until config.py exposes these fields
+# Config
 # ---------------------------------------------------------------------------
 
-# Load .env so os.getenv picks up values when running without an external
-# process that already exports them (e.g. local dev, pytest).
-load_dotenv()
+_settings = get_settings()
 
-# TODO: switch to settings.secret_key once config.py exposes it
-_SECRET_KEY: str = os.getenv("SECRET_KEY", "")
-if not _SECRET_KEY:
-    raise RuntimeError(
-        "SECRET_KEY environment variable is not set. "
-        "Add it to your .env file or the process environment."
-    )
+_SECRET_KEY: str = _settings.secret_key
+if not _SECRET_KEY or _SECRET_KEY == "change_me_in_production":
+    if _settings.app_env == "production":
+        raise RuntimeError("SECRET_KEY must be changed in production.")
 
-# TODO: switch to settings.algorithm once config.py exposes it
-_ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
+_ALGORITHM: str = _settings.algorithm
 
-# Token lifetimes — also env-configurable, sensible defaults provided.
-_ACCESS_TOKEN_EXPIRE_MINUTES: int = int(
-    os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
-)
-_REFRESH_TOKEN_EXPIRE_DAYS: int = int(
-    os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7")
-)
-_RESET_TOKEN_EXPIRE_MINUTES: int = int(
-    os.getenv("RESET_TOKEN_EXPIRE_MINUTES", "15")
-)
+# Token lifetimes
+_ACCESS_TOKEN_EXPIRE_MINUTES: int = _settings.access_token_expire_minutes
+_REFRESH_TOKEN_EXPIRE_DAYS: int = _settings.refresh_token_expire_days
+_RESET_TOKEN_EXPIRE_MINUTES: int = _settings.reset_token_expire_minutes
 
 # ---------------------------------------------------------------------------
 # Password hashing — argon2

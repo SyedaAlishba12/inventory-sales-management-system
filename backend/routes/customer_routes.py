@@ -37,7 +37,7 @@ async def create_customer(
     db: DatabaseSession,
     staff=Depends(require_staff),
 ) -> CustomerResponse:
-    created = await customer_service.create(db, payload)
+    created = await customer_service.create(db, payload, user_id=staff.id)
     return CustomerResponse.model_validate(created)
 
 
@@ -79,7 +79,7 @@ async def update_customer(
     db: DatabaseSession,
     staff=Depends(require_staff),
 ) -> CustomerResponse:
-    updated = await customer_service.update(db, customer_id, payload)
+    updated = await customer_service.update(db, customer_id, payload, user_id=staff.id)
     return CustomerResponse.model_validate(updated)
 
 
@@ -93,4 +93,4 @@ async def delete_customer(
     db: DatabaseSession,
     admin=Depends(require_admin),
 ):
-    await customer_service.delete(db, customer_id)
+    await customer_service.delete(db, customer_id, user_id=admin.id)

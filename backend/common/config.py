@@ -20,6 +20,20 @@ class Settings(BaseSettings):
     database_max_overflow: int = Field(default=10, ge=0, le=100)
     cors_origins: str = "http://localhost:3000"
 
+    # JWT Authentication
+    secret_key: str = "change_me_in_production"
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 7
+    reset_token_expire_minutes: int = 15
+
+    # SMTP / Email Delivery
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from_address: str = ""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

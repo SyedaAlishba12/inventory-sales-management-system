@@ -13,6 +13,7 @@ Uses:
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from common.email import send_password_reset_email
 from common.security import (
     create_access_token,
     create_refresh_token,
@@ -59,7 +60,7 @@ class AuthService:
             full_name=payload.full_name,
             email=payload.email,
             password_hash=hash_password(payload.password),
-            role=UserRole(payload.role),
+            role=UserRole.STAFF,
             is_active=True,
         )
         db.add(user)
@@ -142,10 +143,6 @@ class AuthService:
 
         Always returns silently even when the email doesn't exist, to
         prevent user enumeration.
-
-        TODO: integrate an email-sending service to deliver the reset link.
-              For now the token is generated but not sent anywhere — wire
-              the mailer once the email service is decided by the team.
         """
         user = (
             await db.execute(select(User).where(User.email == email))
@@ -155,8 +152,7 @@ class AuthService:
             return
 
         _reset_token = create_reset_token(str(user.id))
-        # TODO: send _reset_token via email to user.email
-        # Coordinate with the team on which email library/service to use.
+        send_password_reset_email(user.email, _reset_token)
 
     # ------------------------------------------------------------------
     # reset_password

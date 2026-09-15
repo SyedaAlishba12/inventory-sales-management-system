@@ -19,7 +19,7 @@ interface SupplierFormProps {
 
 export function SupplierForm({ initialData, onSubmit, onCancel, isLoading = false }: SupplierFormProps) {
   const [name, setName] = useState(initialData?.name ?? "");
-  const [contactPerson, setContactPerson] = useState(initialData?.contact_person ?? "");
+  const [company, setCompany] = useState(initialData?.company ?? "");
   const [email, setEmail] = useState(initialData?.email ?? "");
   const [phone, setPhone] = useState(initialData?.phone ?? "");
   const [address, setAddress] = useState(initialData?.address ?? "");
@@ -32,7 +32,7 @@ export function SupplierForm({ initialData, onSubmit, onCancel, isLoading = fals
     try {
       await onSubmit({
         name,
-        contact_person: contactPerson || null,
+        company: company || null,
         email: email || null,
         phone: phone || null,
         address: address || null,
@@ -62,11 +62,11 @@ export function SupplierForm({ initialData, onSubmit, onCancel, isLoading = fals
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="supplier-contact">Contact Person</Label>
+        <Label htmlFor="supplier-company">Company</Label>
         <Input
-          id="supplier-contact"
-          value={contactPerson}
-          onChange={(e) => setContactPerson(e.target.value)}
+          id="supplier-company"
+          value={company}
+          onChange={(e) => setCompany(e.target.value)}
         />
       </div>
 

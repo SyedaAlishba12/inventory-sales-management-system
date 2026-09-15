@@ -102,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Fetch /api/auth/me to hydrate the user from a stored token.
   const fetchMe = useCallback(async (token: string): Promise<AuthUser | null> => {
     try {
-      const me = await apiClient.get<AuthUser>("/api/auth/me", { token });
+      const me = await apiClient.get<AuthUser>("/api/users/me", { token });
       return me;
     } catch {
       return null;

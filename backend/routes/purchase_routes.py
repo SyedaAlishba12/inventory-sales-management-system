@@ -79,7 +79,7 @@ async def update_purchase(
     db: DatabaseSession,
     staff=Depends(require_staff),
 ) -> PurchaseResponse:
-    updated = await purchase_service.update(db, purchase_id, payload)
+    updated = await purchase_service.update(db, purchase_id, payload, user_id=staff.id)
     return PurchaseResponse.model_validate(updated)
 
 
@@ -93,7 +93,7 @@ async def receive_purchase(
     db: DatabaseSession,
     staff=Depends(require_staff),
 ) -> PurchaseResponse:
-    received = await purchase_service.receive_purchase(db, purchase_id)
+    received = await purchase_service.receive_purchase(db, purchase_id, user_id=staff.id)
     return PurchaseResponse.model_validate(received)
 
 
@@ -107,4 +107,4 @@ async def delete_purchase(
     db: DatabaseSession,
     admin=Depends(require_admin),
 ):
-    await purchase_service.delete(db, purchase_id)
+    await purchase_service.delete(db, purchase_id, user_id=admin.id)

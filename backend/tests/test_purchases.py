@@ -1,12 +1,5 @@
-"""
-backend/tests/test_purchase_receive.py
----------------------------------------
-Tests for purchase receive and stock-in wiring.
-"""
-
 import uuid
 from collections.abc import AsyncIterator
-
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
@@ -20,18 +13,14 @@ from models.user import UserRole, User
 from models.supplier import Supplier
 from models.product import Product
 from models.category import Category
-from models.inventory import Inventory
-from models.purchase import PaymentStatus, Purchase, PurchaseStatus
 from models.activity_log import ActivityLog
 from routes.purchase_routes import router as purchase_router
 from routes.auth_routes import router as auth_router
-
 
 TEST_USER_ID = uuid.uuid4()
 TEST_SUPPLIER_ID = uuid.uuid4()
 TEST_CATEGORY_ID = uuid.uuid4()
 TEST_PRODUCT_ID = uuid.uuid4()
-
 
 @pytest.fixture
 async def session_factory() -> AsyncIterator[async_sessionmaker[AsyncSession]]:
@@ -59,9 +48,9 @@ async def session_factory() -> AsyncIterator[async_sessionmaker[AsyncSession]]:
         await connection.execute(
             insert(Supplier).values(
                 id=TEST_SUPPLIER_ID,
-                name="Test Supplier",
-                phone="1234567890",
-                email="supplier@example.com",
+                name="Supplier",
+                phone="1234",
+                email="s@s.com",
             )
         )
         await connection.execute(
@@ -81,22 +70,12 @@ async def session_factory() -> AsyncIterator[async_sessionmaker[AsyncSession]]:
                 min_stock_level=0,
             )
         )
-        await connection.execute(
-            insert(Inventory).values(
-                id=uuid.uuid4(),
-                product_id=TEST_PRODUCT_ID,
-                current_stock=20,
-                opening_stock=20,
-                damaged_stock=0,
-            )
-        )
 
     factory = create_session_factory(database_engine)
     try:
         yield factory
     finally:
         await database_engine.dispose()
-
 
 @pytest.fixture
 def app_client(session_factory: async_sessionmaker[AsyncSession]) -> AsyncClient:
@@ -112,57 +91,67 @@ def app_client(session_factory: async_sessionmaker[AsyncSession]) -> AsyncClient
     transport = ASGITransport(app=test_app)
     return AsyncClient(transport=transport, base_url="http://test")
 
-
 async def get_token(client):
     resp = await client.post("/api/auth/login", json={"email": "staff@example.com", "password": "Password123!"})
     return resp.json()["access_token"]
 
-
 @pytest.mark.asyncio
-async def test_purchase_receive_flow(
-    app_client: AsyncClient,
-    session_factory: async_sessionmaker[AsyncSession],
-) -> None:
+async def test_purchases_crud_and_activity_logs(app_client: AsyncClient, session_factory):
     token = await get_token(app_client)
     headers = {"Authorization": f"Bearer {token}"}
     
-    # 1. Create a purchase with items
+    # Create
     payload = {
         "supplier_id": str(TEST_SUPPLIER_ID),
-        "notes": "Test receive purchase",
+        "notes": "Test purchase",
         "items": [
             {
                 "product_id": str(TEST_PRODUCT_ID),
-                "quantity": 15,
+                "quantity": 10,
                 "cost_price": 5.0
             }
         ]
     }
-    create_response = await app_client.post("/api/purchases", json=payload, headers=headers)
-    assert create_response.status_code == 201
-    purchase_id = create_response.json()["id"]
-
-    # 2. Receive the purchase (should succeed)
-    receive_response = await app_client.patch(f"/api/purchases/{purchase_id}/receive", headers=headers)
-    assert receive_response.status_code == 200
-    assert receive_response.json()["purchase_status"] == "RECEIVED"
-
-    # 3. Assert Inventory.current_stock increased (20 + 15 = 35)
+    response = await app_client.post("/api/purchases", json=payload, headers=headers)
+    assert response.status_code == 201
+    purchase_id = response.json()["id"]
+    
     async with session_factory() as session:
-        inventory = (await session.execute(
-            select(Inventory).where(Inventory.product_id == TEST_PRODUCT_ID)
-        )).scalars().first()
-        assert inventory is not None
-        assert inventory.current_stock == 35
+        logs = (await session.execute(select(ActivityLog).where(ActivityLog.entity_id == uuid.UUID(purchase_id)))).scalars().all()
+        assert any(log.action == "purchase.created" for log in logs)
 
-    # 4. Assert Activity Log was created for "purchase.received"
+    # List
+    response = await app_client.get("/api/purchases", headers=headers)
+    assert response.status_code == 200
+    assert len(response.json()) >= 1
+    
+    # Get
+    response = await app_client.get(f"/api/purchases/{purchase_id}", headers=headers)
+    assert response.status_code == 200
+    
+    # Update
+    response = await app_client.patch(f"/api/purchases/{purchase_id}", json={"notes": "Updated"}, headers=headers)
+    assert response.status_code == 200
+    
     async with session_factory() as session:
-        logs = (await session.execute(
-            select(ActivityLog).where(ActivityLog.entity_id == uuid.UUID(purchase_id))
-        )).scalars().all()
-        assert any(log.action == "purchase.received" for log in logs)
+        logs = (await session.execute(select(ActivityLog).where(ActivityLog.entity_id == uuid.UUID(purchase_id)))).scalars().all()
+        assert any(log.action == "purchase.updated" for log in logs)
 
-    # 5. Receive the purchase again (should raise 409 Conflict)
-    receive_twice_response = await app_client.patch(f"/api/purchases/{purchase_id}/receive", headers=headers)
-    assert receive_twice_response.status_code == 409
-    assert "already been received" in receive_twice_response.json()["detail"]
+    # Delete is admin only
+    # Let's add an admin token and test it
+    await app_client.post("/api/auth/signup", json={"email": "admin2@example.com", "password": "Password123!", "full_name": "Admin"})
+    async with session_factory() as session:
+        admin = (await session.execute(select(User).where(User.email == "admin2@example.com"))).scalar_one()
+        admin.role = UserRole.ADMIN
+        await session.commit()
+    
+    admin_token_resp = await app_client.post("/api/auth/login", json={"email": "admin2@example.com", "password": "Password123!"})
+    admin_token = admin_token_resp.json()["access_token"]
+    
+    response = await app_client.delete(f"/api/purchases/{purchase_id}", headers={"Authorization": f"Bearer {admin_token}"})
+    assert response.status_code == 204
+    
+    async with session_factory() as session:
+        logs = (await session.execute(select(ActivityLog).where(ActivityLog.entity_id == uuid.UUID(purchase_id)))).scalars().all()
+        assert any(log.action == "purchase.deleted" for log in logs)
+

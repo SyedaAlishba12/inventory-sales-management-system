@@ -30,7 +30,7 @@ class PurchaseItemCreate(BaseModel):
         ge=1,
         description="Number of units ordered — must be at least 1.",
     )
-    unit_price: Decimal = Field(
+    cost_price: Decimal = Field(
         ...,
         ge=0,
         decimal_places=2,
@@ -44,7 +44,7 @@ class PurchaseItemResponse(BaseModel):
     id: UUID
     product_id: UUID
     quantity: int
-    unit_price: Decimal
+    cost_price: Decimal
     total_price: Decimal
 
     model_config = {"from_attributes": True}
@@ -96,7 +96,7 @@ class PurchaseResponse(BaseModel):
     supplier_id: UUID
     payment_status: str
     purchase_status: str
-    total_amount: Decimal
+    total_cost: Decimal
     notes: str | None
     items: list[PurchaseItemResponse]
 

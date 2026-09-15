@@ -41,6 +41,8 @@ from models.purchase_item import PurchaseItem
 from models.supplier import Supplier
 from models.user import User
 from schemas.purchase_schema import PurchaseCreate, PurchaseUpdate
+from services.activity_log_service import activity_log_service
+from services.inventory_service import InventoryService
 
 
 class PurchaseService:
@@ -75,7 +77,7 @@ class PurchaseService:
 
         # Compute total cost
         total_cost = sum(
-            Decimal(str(item.unit_price)) * item.quantity
+            Decimal(str(item.cost_price)) * item.quantity
             for item in payload.items
         )
 
@@ -96,12 +98,21 @@ class PurchaseService:
                 purchase_id=purchase.id,
                 product_id=item_in.product_id,
                 quantity=item_in.quantity,
-                cost_price=Decimal(str(item_in.unit_price)),
+                cost_price=Decimal(str(item_in.cost_price)),
             )
             db.add(item)
 
         await db.flush()
         await db.refresh(purchase)
+        
+        await activity_log_service.log(
+            db,
+            action="purchase.created",
+            entity_type="purchase",
+            entity_id=purchase.id,
+            user_id=current_user.id,
+            description=f"Created purchase order for supplier {supplier.name}"
+        )
         await db.commit()
 
         # Re-fetch with items eagerly loaded for the response
@@ -135,7 +146,7 @@ class PurchaseService:
     # ------------------------------------------------------------------
 
     async def update(
-        self, db: AsyncSession, purchase_id: uuid.UUID, payload: PurchaseUpdate
+        self, db: AsyncSession, purchase_id: uuid.UUID, payload: PurchaseUpdate, user_id: uuid.UUID
     ) -> Purchase:
         """Update the status or notes of an existing purchase order.
 
@@ -150,6 +161,15 @@ class PurchaseService:
             purchase.notes = payload.notes
 
         await db.flush()
+        
+        await activity_log_service.log(
+            db,
+            action="purchase.updated",
+            entity_type="purchase",
+            entity_id=purchase.id,
+            user_id=user_id,
+            description=f"Updated purchase order status"
+        )
         await db.commit()
 
         return await self._get_with_items(db, purchase_id)
@@ -158,7 +178,7 @@ class PurchaseService:
     # delete
     # ------------------------------------------------------------------
 
-    async def delete(self, db: AsyncSession, purchase_id: uuid.UUID) -> None:
+    async def delete(self, db: AsyncSession, purchase_id: uuid.UUID, user_id: uuid.UUID) -> None:
         """Delete a purchase order (and cascade-delete its items).
 
         Raises:
@@ -166,13 +186,22 @@ class PurchaseService:
         """
         purchase = await self.get(db, purchase_id)
         await db.delete(purchase)
+        
+        await activity_log_service.log(
+            db,
+            action="purchase.deleted",
+            entity_type="purchase",
+            entity_id=purchase_id,
+            user_id=user_id,
+            description=f"Deleted purchase order"
+        )
         await db.commit()
 
     # ------------------------------------------------------------------
     # receive
     # ------------------------------------------------------------------
 
-    async def receive_purchase(self, db: AsyncSession, purchase_id: uuid.UUID) -> Purchase:
+    async def receive_purchase(self, db: AsyncSession, purchase_id: uuid.UUID, user_id: uuid.UUID) -> Purchase:
         purchase = await self.get(db, purchase_id)
 
         if purchase.purchase_status == PurchaseStatus.RECEIVED:
@@ -186,17 +215,27 @@ class PurchaseService:
                 "Cannot receive a cancelled purchase.",
             )
 
+        # Call Zainab's inventory service for each PurchaseItem
+        for item in purchase.items:
+            await InventoryService.process_stock_in(
+                db, 
+                product_id=item.product_id, 
+                quantity=item.quantity, 
+                user_id=user_id, 
+                reason=f"Purchase {purchase.id} received"
+            )
+
         purchase.purchase_status = PurchaseStatus.RECEIVED
         await db.flush()
 
-        # TODO: call Zainab's inventory service once it exists — for each
-        # PurchaseItem on this purchase:
-        # await inventory_service.increase_stock(
-        #     db, product_id=item.product_id, quantity=item.quantity,
-        #     reason="purchase", user_id=purchase.user_id,
-        # )
-        # This must only ever run once per purchase — the status check above
-        # is what enforces that. Do not remove or weaken that check.
+        await activity_log_service.log(
+            db,
+            action="purchase.received",
+            entity_type="purchase",
+            entity_id=purchase.id,
+            user_id=user_id,
+            description=f"Received purchase order"
+        )
 
         await db.commit()
         await db.refresh(purchase)
