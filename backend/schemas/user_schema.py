@@ -11,6 +11,23 @@ from uuid import UUID
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
+from models.user import UserRole
+
+class UserCreate(BaseModel):
+    """Request body for POST /api/users (admin-only)."""
+
+    full_name: str = Field(..., min_length=2, max_length=100, examples=["Jane Smith"])
+    email: EmailStr = Field(..., examples=["jane@example.com"])
+    password: str = Field(..., min_length=8, max_length=128, examples=["Str0ng!Pass"])
+    role: UserRole = Field(..., description="User role — 'admin' or 'staff'.")
+
+    @field_validator("password")
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        from schemas.auth_schema import SignupRequest
+        return SignupRequest.password_strength(v)
+
+
 class UserResponse(BaseModel):
     """Read-only view of a User record returned by the API."""
 

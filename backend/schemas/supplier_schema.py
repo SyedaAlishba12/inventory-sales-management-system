@@ -17,7 +17,7 @@ class SupplierCreate(BaseModel):
     name: str = Field(
         ..., min_length=1, max_length=150, examples=["Global Parts Ltd"]
     )
-    contact_person: str | None = Field(
+    company: str | None = Field(
         default=None, max_length=100, examples=["John Doe"]
     )
     email: EmailStr | None = Field(
@@ -41,7 +41,7 @@ class SupplierUpdate(BaseModel):
     """
 
     name: str | None = Field(default=None, min_length=1, max_length=150)
-    contact_person: str | None = Field(default=None, max_length=100)
+    company: str | None = Field(default=None, max_length=100)
     email: EmailStr | None = None
     phone: str | None = Field(
         default=None,
@@ -56,7 +56,7 @@ class SupplierResponse(BaseModel):
 
     id: UUID
     name: str
-    contact_person: str | None
+    company: str | None
     email: str | None
     phone: str | None
     address: str | None

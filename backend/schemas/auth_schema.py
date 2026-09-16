@@ -25,12 +25,6 @@ class SignupRequest(BaseModel):
         max_length=128,
         examples=["Str0ng!Pass"],
     )
-    role: str = Field(
-        default="staff",
-        pattern="^(admin|staff)$",
-        examples=["staff"],
-        description="User role — 'admin' or 'staff'.",
-    )
 
     @field_validator("password")
     @classmethod

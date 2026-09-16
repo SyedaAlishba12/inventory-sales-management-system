@@ -30,7 +30,7 @@ class PurchaseItemCreate(BaseModel):
         ge=1,
         description="Number of units ordered — must be at least 1.",
     )
-    unit_price: Decimal = Field(
+    cost_price: Decimal = Field(
         ...,
         ge=0,
         decimal_places=2,
@@ -44,7 +44,7 @@ class PurchaseItemResponse(BaseModel):
     id: UUID
     product_id: UUID
     quantity: int
-    unit_price: Decimal
+    cost_price: Decimal
     total_price: Decimal
 
     model_config = {"from_attributes": True}
@@ -81,10 +81,10 @@ class PurchaseUpdate(BaseModel):
     individually through this schema — that requires a dedicated item endpoint.
     """
 
-    status: str | None = Field(
+    payment_status: str | None = Field(
         default=None,
-        pattern="^(pending|received|cancelled)$",
-        description="New status for the purchase order.",
+        pattern="^(pending|paid|partial)$",
+        description="New payment status for the purchase order.",
     )
     notes: str | None = Field(default=None, max_length=500)
 
@@ -94,8 +94,9 @@ class PurchaseResponse(BaseModel):
 
     id: UUID
     supplier_id: UUID
-    status: str
-    total_amount: Decimal
+    payment_status: str
+    purchase_status: str
+    total_cost: Decimal
     notes: str | None
     items: list[PurchaseItemResponse]
 

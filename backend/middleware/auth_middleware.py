@@ -3,30 +3,20 @@ backend/middleware/auth_middleware.py
 --------------------------------------
 JWT-based authentication dependencies for FastAPI route protection.
 
-What is fully implemented here
---------------------------------
-- OAuth2 bearer token extraction from the Authorization header via FastAPI's
-  OAuth2PasswordBearer scheme.
-- decode_token() call with proper 401 responses on missing / invalid / expired
-  tokens.
-- require_admin() and require_staff() role-check dependencies that operate on
-  the user object returned by get_current_user().
-- get_current_user() — everything except the actual DB query, which is blocked
-  on backend/models/user.py not yet existing.
+Fully implemented:
+- OAuth2 bearer token extraction (Authorization: Bearer header)
+- decode_token() call with proper 401 on missing / invalid / expired tokens
+- get_current_user() — real DB lookup against the now-real User model
+- require_admin() and require_staff() role-check dependencies
 
-What is stubbed (with TODOs)
-------------------------------
-get_current_user(): The function signature, token decoding, and UUID extraction
-are all complete.  The SQLAlchemy select() call is commented out pending the
-User model.  The function currently raises NotImplementedError so callers fail
-loudly rather than silently, and the stub comment shows exactly what to drop in
-once the model lands.
+Step 3 fix applied (2026-09-11):
+    auth_middleware was originally written against a guessed function name
+    get_db().  The real session factory is get_db_session() in
+    database.session.  All references updated.
 
-Blocked on
------------
-- backend/models/user.py  — User ORM model (Zainab's / team assignment TBC)
-- backend/database/session.py (or equivalent) — get_db() async session factory
-  (likely Sayeel's, or comes with the database foundation already on his branch)
+Step 4 fix applied (2026-09-11):
+    get_current_user() now performs a real SQLAlchemy select(User) query.
+    The NotImplementedError stub has been replaced.
 """
 
 import uuid
@@ -34,9 +24,11 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.common.security import decode_token
+from common.security import decode_token
+from database.session import get_db_session
 
 # ---------------------------------------------------------------------------
 # OAuth2 scheme — extracts the Bearer token from the Authorization header.
@@ -46,39 +38,13 @@ from backend.common.security import decode_token
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 # ---------------------------------------------------------------------------
-# get_db dependency placeholder
-# ---------------------------------------------------------------------------
-# TODO: Once Sayeel's database session factory is available, replace this
-#       import with:
-#           from backend.database.session import get_db
-#       For now the type annotation below uses AsyncSession so the stub is
-#       type-correct without an actual import.
-
-async def get_db():  # pragma: no cover
-    """
-    Placeholder — yields an AsyncSession for use in route dependencies.
-
-    TODO: Replace this entire function body with the real session factory
-          from backend.database.session once that module exists.
-          Example implementation:
-              async with async_session_maker() as session:
-                  yield session
-    """
-    raise NotImplementedError(
-        "get_db is blocked on backend/database/session.py — "
-        "implement the async session factory there and import it here."
-    )
-    yield  # make this a generator so FastAPI treats it as a dependency
-
-
-# ---------------------------------------------------------------------------
 # get_current_user
 # ---------------------------------------------------------------------------
 
 
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
-    db: Annotated[AsyncSession, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
 ):
     """Extract, decode, and return the currently authenticated user.
 
@@ -91,9 +57,14 @@ async def get_current_user(
 
     Raises:
         HTTPException 401: If the token is missing, invalid, expired, or the
-                           wrong type (not an access token).
-        NotImplementedError: Until backend/models/user.py exists.
+                           wrong type (not an access token), or if the user
+                           is not found or is inactive.
     """
+    # Import here to avoid circular import at module load time
+    # (models.user imports from database.base; middleware is loaded before models
+    # are registered if imported at the top level during app startup)
+    from models.user import User  # noqa: PLC0415
+
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Invalid or expired token",
@@ -109,18 +80,15 @@ async def get_current_user(
     except (KeyError, ValueError):
         raise credentials_exception
 
-    # TODO: once backend/models/user.py exists —
-    # from backend.models.user import User
-    # from sqlalchemy import select
-    # result = await db.execute(select(User).where(User.id == user_id))
-    # user = result.scalar_one_or_none()
-    # if not user or not user.is_active:
-    #     raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found or inactive")
-    # return user
-    raise NotImplementedError(
-        "get_current_user is blocked on backend/models/user.py — "
-        "see TODO comment above for the exact implementation to drop in."
-    )
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found or inactive",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
 
 
 # ---------------------------------------------------------------------------
@@ -134,23 +102,22 @@ async def require_admin(
     """FastAPI dependency that enforces admin-only access.
 
     Args:
-        current_user: The user returned by get_current_user().
+        current_user: The User ORM instance returned by get_current_user().
 
     Returns:
         The authenticated user if their role is 'admin'.
 
     Raises:
         HTTPException 403: If the user's role is not 'admin'.
-        NotImplementedError: Propagated from get_current_user() until
-                             backend/models/user.py lands.
 
     Usage:
         @router.delete("/api/users/{user_id}")
         async def delete_user(admin = Depends(require_admin)):
             ...
     """
-    # current_user.role will be accessible once get_current_user() is unblocked.
-    if getattr(current_user, "role", None) != "admin":
+    from models.user import UserRole  # noqa: PLC0415
+
+    if getattr(current_user, "role", None) != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required.",
@@ -164,22 +131,22 @@ async def require_staff(
     """FastAPI dependency that allows both 'admin' and 'staff' roles.
 
     Args:
-        current_user: The user returned by get_current_user().
+        current_user: The User ORM instance returned by get_current_user().
 
     Returns:
         The authenticated user if their role is 'admin' or 'staff'.
 
     Raises:
         HTTPException 403: If the user's role is neither 'admin' nor 'staff'.
-        NotImplementedError: Propagated from get_current_user() until
-                             backend/models/user.py lands.
 
     Usage:
         @router.get("/api/customers")
         async def list_customers(user = Depends(require_staff)):
             ...
     """
-    if getattr(current_user, "role", None) not in ("admin", "staff"):
+    from models.user import UserRole  # noqa: PLC0415
+
+    if getattr(current_user, "role", None) not in (UserRole.ADMIN, UserRole.STAFF):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Staff or admin access required.",
