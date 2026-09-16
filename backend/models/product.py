@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Integer, Numeric, ForeignKey, DateTime
+from sqlalchemy import Column, String, Integer, Numeric, ForeignKey, DateTime, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -31,7 +31,7 @@ class Product(Base):
     # Product attributes
     name = Column(String(255), nullable=False, index=True)
     sku = Column(String(100), nullable=False, unique=True, index=True)
-    description = Column(String(1000), nullable=True)
+    description = Column(Text, nullable=True)
     selling_price = Column(Numeric(10, 2), nullable=False)
     cost_price = Column(Numeric(10, 2), nullable=False)
     min_stock_level = Column(Integer, nullable=False, default=5)
@@ -80,4 +80,3 @@ class Product(Base):
 
     def __repr__(self) -> str:
         return f"Product(id={self.id!r}, name={self.name!r}, sku={self.sku!r})"
-

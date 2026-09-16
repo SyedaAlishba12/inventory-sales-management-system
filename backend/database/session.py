@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
-)
+) 
 
 from common.config import Settings, get_settings
 
@@ -78,3 +78,5 @@ async def check_database_connection(
 
 async def dispose_database(database_engine: AsyncEngine = engine) -> None:
     await database_engine.dispose()
+
+get_db = get_db_session

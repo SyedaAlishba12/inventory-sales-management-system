@@ -1,11 +1,18 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Integer, Text, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, Text, ForeignKey, DateTime,Enum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from database.base import Base
+import enum
 
+
+class MovementType(str, enum.Enum):
+    STOCK_IN = "STOCK_IN"
+    STOCK_OUT = "STOCK_OUT"
+    DAMAGED = "DAMAGED"
+    ADJUSTMENT = "ADJUSTMENT"
 
 class InventoryMovement(Base):
     """Audit trail model recording every stock change (In, Out, Damaged, Adjustment)."""
@@ -38,11 +45,14 @@ class InventoryMovement(Base):
 
     # Movement details
     movement_type = Column(
-        String(50),
+        Enum(
+            MovementType,
+            name="movement_type",
+            values_callable=lambda e: [member.value for member in e],
+        ),
         nullable=False,
         index=True,
-    )  # STOCK_IN, STOCK_OUT, DAMAGED, ADJUSTMENT
-
+    )
     quantity = Column(Integer, nullable=False)
     previous_stock = Column(Integer, nullable=False)
     new_stock = Column(Integer, nullable=False)

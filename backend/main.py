@@ -41,15 +41,10 @@ app.add_middleware(
 )
 
 app.include_router(activity_log_router)
-<<<<<<< Updated upstream
-app.include_router(sales_router)
-
-=======
-app.include_router(product_routes.router)
-app.include_router(category_routes.router)
-app.include_router(inventory_routes.router)
-app.include_router(notification_routes.router)
->>>>>>> Stashed changes
+app.include_router(product_router)
+app.include_router(category_router)
+app.include_router(inventory_router)
+app.include_router(notification_router)
 
 @app.get("/")
 def root():

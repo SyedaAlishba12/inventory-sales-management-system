@@ -63,6 +63,15 @@ class Sale(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     items: Mapped[list["SaleItem"]] = relationship(
         "SaleItem", back_populates="sale", cascade="all, delete-orphan"
     )
+    user: Mapped["User"] = relationship(
+    "User",
+    back_populates="sales",
+)
+
+    customer: Mapped["Customer | None"] = relationship(
+    "Customer",
+    back_populates="sales",
+)
 
     def __repr__(self) -> str:
         return f"Sale(id={self.id!r}, invoice_number={self.invoice_number!r}, total={self.total!r})"
