@@ -4,6 +4,7 @@ from uuid import UUID
 
 from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from models.activity_log import ActivityLog
 from schemas.activity_log import ActivityLogCreate
@@ -40,7 +41,12 @@ class ActivityLogService:
         session: AsyncSession,
         activity_log_id: UUID,
     ) -> ActivityLog | None:
-        return await session.get(ActivityLog, activity_log_id)
+        statement = (
+            select(ActivityLog)
+            .options(selectinload(ActivityLog.user))
+            .where(ActivityLog.id == activity_log_id)
+        )
+        return (await session.execute(statement)).scalar_one_or_none()
 
     async def list(
         self,
@@ -71,15 +77,20 @@ class ActivityLogService:
 
         count_statement = select(func.count()).select_from(ActivityLog).where(*filters)
         total = int((await session.execute(count_statement)).scalar_one())
+
         statement: Select[tuple[ActivityLog]] = (
             select(ActivityLog)
+            .options(selectinload(ActivityLog.user))
             .where(*filters)
             .order_by(ActivityLog.created_at.desc(), ActivityLog.id.desc())
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
+
         items = list((await session.execute(statement)).scalars().all())
+
         return items, total, ceil(total / page_size) if total else 0
 
 
 activity_log_service = ActivityLogService()
+

@@ -44,6 +44,10 @@ class ActivityLog(UUIDPrimaryKeyMixin, Base):
         back_populates="activity_logs",
     )
 
+    @property
+    def user_name(self) -> str | None:
+        return self.user.full_name if self.user is not None else None
+
     def __repr__(self) -> str:
         return (
             f"ActivityLog(id={self.id!r}, action={self.action!r}, "
