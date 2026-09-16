@@ -12,6 +12,12 @@ class Settings(BaseSettings):
     app_env: Literal["development", "testing", "production"] = "development"
     debug: bool = False
 
+    secret_key: str = "change_me_in_production"
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 7
+    reset_token_expire_minutes: int = 30
+
     database_url: str = (
         "postgresql+asyncpg://example_user:example_password@localhost:5432/example_database"
     )

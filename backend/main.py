@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from common.config import get_settings
 from database.session import dispose_database
 from routes.activity_log_routes import router as activity_log_router
+from routes.pos_routes import router as pos_router
 from routes.sales_routes import router as sales_router
 
 settings = get_settings()
@@ -37,6 +38,7 @@ app.add_middleware(
 
 app.include_router(activity_log_router)
 app.include_router(sales_router)
+app.include_router(pos_router)
 
 
 @app.get("/")

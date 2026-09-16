@@ -19,6 +19,8 @@ from database.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
 
 class PaymentStatus(str, enum.Enum):
+    """Payment status of a purchase order."""
+
     PENDING = "PENDING"
     PAID = "PAID"
     PARTIAL = "PARTIAL"
