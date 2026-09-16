@@ -12,23 +12,50 @@ from models.sale import Sale, SaleStatus
 from models.sale_item import SaleItem
 from schemas.sale import SaleCreate
 from services.activity_log_service import activity_log_service
+from services.inventory_service import InventoryService
 from services.pos_service import calculate_totals
 
-# TODO: swap in Zainab's real inventory service once her PR (products &
-# inventory) is merged. Keeping this as a stub avoids ImportError for now
-# while everyone else's routes still work with our module.
+
 async def _decrease_stock(
-    session: AsyncSession, *, product_id: uuid.UUID, quantity: int
+    session: AsyncSession, *, product_id: uuid.UUID, quantity: int, user_id: uuid.UUID
 ) -> None:
-    return None
+    """Wired to Zainab's real InventoryService.process_stock_out.
+
+    NOTE for the team: process_stock_out() commits the session itself
+    internally. Inside our checkout loop, that means if item 2 of a
+    multi-item cart fails (e.g. insufficient stock), item 1's stock
+    decrease + our partially-built Sale row are already permanently
+    committed — not rolled back. Flagging this to Zainab/Taha since
+    Purchase's process_stock_in() likely has the same behavior. Not
+    something to silently patch here since it's not our file.
+    """
+    await InventoryService.process_stock_out(
+        session,
+        product_id=product_id,
+        quantity=quantity,
+        user_id=user_id,
+        reason="Sale Completed",
+    )
 
 
-# TODO: swap in Zainab's real notification_service once her PR merges.
-# Per the task doc: "New sale" is a notification event, and "the relevant
-# modules trigger these events" — meaning Fatima's module (not Zainab's)
-# is responsible for calling this when a sale completes.
+# TODO: swap in a real notification_service.create(...) if Zainab adds one
+# later — her NotificationService currently only has read/mark-as-read
+# methods, no create(). Matching her own pattern from inventory_service.py,
+# which builds a Notification(...) row directly rather than going through
+# a service method.
 async def _notify_new_sale(session: AsyncSession, *, sale: Sale) -> None:
-    return None
+    from models.notification import Notification
+
+    session.add(
+        Notification(
+            user_id=None,  # broadcast — visible to all, not tied to one staff member
+            product_id=None,  # a sale can span multiple products, doesn't fit one FK
+            title="New Sale",
+            message=f"New sale completed: Invoice {sale.invoice_number} (total {sale.total}).",
+            type="NEW_SALE",
+            is_read=False,
+        )
+    )
 
 
 class SalesService:
@@ -78,7 +105,9 @@ class SalesService:
                     line_subtotal=line_subtotal,
                 )
             )
-            await _decrease_stock(session, product_id=item.product_id, quantity=item.quantity)
+            await _decrease_stock(
+                session, product_id=item.product_id, quantity=item.quantity, user_id=user_id
+            )
 
         await activity_log_service.log(
             session,

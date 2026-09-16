@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ShoppingCart } from "lucide-react";
 
 import { CartItem, ProductSearch } from "@/components/shared/pos";
+import { CustomerPicker } from "@/components/pos/customer-picker";
 import { PaymentCheckout } from "@/components/pos/payment-checkout";
 import { PosProductGrid } from "@/components/pos/pos-product-grid";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -12,8 +13,9 @@ import { PageHeader } from "@/components/layout/page-header";
 import { defaultNavigation } from "@/components/layout/navigation";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apiClient } from "@/utils/api-client";
+import { mapPosProductList } from "@/utils/pos-product-mapper";
 import { toastUtils } from "@/utils/toast";
-import type { CartLine, PosProduct } from "@/types";
+import type { CartLine, Identifier, PosProduct } from "@/types";
 
 // TODO: swap for real tax rate config once Taha/Zainab's settings module lands.
 const DEFAULT_TAX_RATE = 0;
@@ -26,6 +28,11 @@ export default function PosPage() {
 
   const [cart, setCart] = useState<CartLine[]>([]);
   const [discount, setDiscount] = useState(0);
+  const [selectedCustomer, setSelectedCustomer] = useState<{
+    id: Identifier;
+    name: string;
+    phone?: string;
+  } | null>(null);
 
   // Browse mode: default product grid shown when the search box is empty.
   // Doc requirement B: "Browse products" is separate from "Search products".
@@ -37,19 +44,19 @@ export default function PosPage() {
     setBrowseLoading(true);
 
     apiClient
-      .get<PosProduct[]>("/api/pos/products", {
+      .get<Parameters<typeof mapPosProductList>[0]>("/api/pos/products", {
         query: { limit: 12 },
         signal: controller.signal,
       })
-      .then(setBrowseProducts)
+      .then((raw) => setBrowseProducts(mapPosProductList(raw)))
       .catch(() => setBrowseProducts([]))
       .finally(() => setBrowseLoading(false));
 
     return () => controller.abort();
   }, []);
 
-  // Live product search — hits Zainab's products endpoint via our /api/pos/products
-  // proxy (currently a stub, so results are empty until her PR merges).
+  // Live product search — hits Zainab's product+inventory query via
+  // /api/pos/products (now wired to real data).
   useEffect(() => {
     const query = debouncedQuery.trim();
     if (!query) {
@@ -61,11 +68,11 @@ export default function PosPage() {
     setSearching(true);
 
     apiClient
-      .get<PosProduct[]>("/api/pos/products", {
+      .get<Parameters<typeof mapPosProductList>[0]>("/api/pos/products", {
         query: { search: query, limit: 10 },
         signal: controller.signal,
       })
-      .then(setSearchResults)
+      .then((raw) => setSearchResults(mapPosProductList(raw)))
       .catch(() => setSearchResults([]))
       .finally(() => setSearching(false));
 
@@ -138,8 +145,8 @@ export default function PosPage() {
     paymentMethod: "CASH" | "CARD" | "ONLINE";
   }) {
     try {
-      // TODO: real customer_id once a customer picker exists (Taha's module).
       await apiClient.post("/api/pos/checkout", {
+        customer_id: selectedCustomer?.id ?? null,
         items: cart.map((line) => ({
           product_id: line.productId,
           quantity: line.quantity,
@@ -154,6 +161,7 @@ export default function PosPage() {
       toastUtils.success("Sale completed", "Invoice generated successfully.");
       setCart([]);
       setDiscount(0);
+      setSelectedCustomer(null);
     } catch (error) {
       toastUtils.error(error, "Could not complete the sale");
     }
@@ -170,6 +178,8 @@ export default function PosPage() {
         <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
           {/* Left: search + cart */}
           <div className="space-y-4">
+            <CustomerPicker selectedCustomer={selectedCustomer} onSelect={setSelectedCustomer} />
+
             <ProductSearch
               value={searchQuery}
               onChange={setSearchQuery}

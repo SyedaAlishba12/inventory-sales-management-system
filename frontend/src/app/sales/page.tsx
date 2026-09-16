@@ -84,7 +84,7 @@ export default function SalesHistoryPage() {
         <SalesTable
           sales={sales}
           loading={loading}
-          onRowClick={(row) => router.push(`/invoices/${row.id}`)}
+          onRowClick={(row) => router.push(`/sales/${row.id}`)}
         />
 
         {!loading && sales.length > 0 && (
