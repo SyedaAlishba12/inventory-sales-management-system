@@ -1,3 +1,4 @@
+import enum
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy import Column, String, Text, Boolean, ForeignKey, DateTime,Enum
@@ -7,6 +8,13 @@ from sqlalchemy.orm import relationship
 from database.base import Base
 
 import enum
+class NotificationType(str, enum.Enum):
+    LOW_STOCK = "LOW_STOCK"
+    MULTIPLE_LOW_STOCK = "MULTIPLE_LOW_STOCK"
+    NEW_SALE = "NEW_SALE"
+    PURCHASE_RECEIVED = "PURCHASE_RECEIVED"
+
+
 class NotificationType(str, enum.Enum):
     LOW_STOCK = "LOW_STOCK"
     MULTIPLE_LOW_STOCK = "MULTIPLE_LOW_STOCK"
@@ -49,6 +57,7 @@ class Notification(Base):
     title = Column(String(255), nullable=False)
     message = Column(Text, nullable=False)
     is_read = Column(Boolean, default=False, nullable=False)
+    
     type = Column(
         Enum(
             NotificationType,
