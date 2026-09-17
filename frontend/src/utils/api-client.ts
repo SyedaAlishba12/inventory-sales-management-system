@@ -1,26 +1,47 @@
 import { API_TIMEOUT_MS } from "@/constants";
 import { ApiError } from "@/utils/api-error-handler";
-import type { ApiErrorPayload, ApiRequestOptions, QueryParams, QueryValue } from "@/types";
+import type {
+  ApiErrorPayload,
+  ApiRequestOptions,
+  QueryParams,
+  QueryValue,
+} from "@/types";
 
 type TokenProvider = () => string | null | Promise<string | null>;
 
-const configuredBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const configuredBaseUrl =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-function appendQueryValue(searchParams: URLSearchParams, key: string, value: QueryValue) {
+function appendQueryValue(
+  searchParams: URLSearchParams,
+  key: string,
+  value: QueryValue,
+) {
   const values = Array.isArray(value) ? value : [value];
+
   values.forEach((item) => {
     if (item === null || item === undefined || item === "") return;
-    searchParams.append(key, item instanceof Date ? item.toISOString() : String(item));
+
+    searchParams.append(
+      key,
+      item instanceof Date ? item.toISOString() : String(item),
+    );
   });
 }
 
-function buildUrl(baseUrl: string, path: string, query?: QueryParams) {
+function buildUrl(
+  baseUrl: string,
+  path: string,
+  query?: QueryParams,
+) {
   const normalizedBase = `${baseUrl.replace(/\/$/, "")}/`;
   const normalizedPath = path.replace(/^\//, "");
   const url = new URL(normalizedPath, normalizedBase);
 
   if (query) {
-    Object.entries(query).forEach(([key, value]) => appendQueryValue(url.searchParams, key, value));
+    Object.entries(query).forEach(([key, value]) => {
+      appendQueryValue(url.searchParams, key, value);
+    });
   }
 
   return url.toString();
@@ -28,8 +49,12 @@ function buildUrl(baseUrl: string, path: string, query?: QueryParams) {
 
 async function parseResponseBody(response: Response) {
   if (response.status === 204) return undefined;
+
   const contentType = response.headers.get("content-type") || "";
-  return contentType.includes("application/json") ? response.json() : response.text();
+
+  return contentType.includes("application/json")
+    ? response.json()
+    : response.text();
 }
 
 export class ApiClient {
@@ -41,7 +66,10 @@ export class ApiClient {
     this.tokenProvider = provider;
   }
 
-  async request<TResponse>(path: string, options: ApiRequestOptions = {}): Promise<TResponse> {
+  async request<TResponse>(
+    path: string,
+    options: ApiRequestOptions = {},
+  ): Promise<TResponse> {
     const {
       body,
       headers: providedHeaders,
@@ -51,65 +79,316 @@ export class ApiClient {
       signal: externalSignal,
       ...requestInit
     } = options;
+
     const controller = new AbortController();
-    const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
-    const abortFromExternalSignal = () => controller.abort(externalSignal?.reason);
-    externalSignal?.addEventListener("abort", abortFromExternalSignal, { once: true });
+
+    const timeout = globalThis.setTimeout(
+      () => controller.abort(),
+      timeoutMs,
+    );
+
+    const abortFromExternalSignal = () =>
+      controller.abort(externalSignal?.reason);
+
+    externalSignal?.addEventListener(
+      "abort",
+      abortFromExternalSignal,
+      { once: true },
+    );
 
     try {
-      const token = providedToken ?? (await this.tokenProvider?.());
-      const headers = new Headers(providedHeaders);
-      headers.set("Accept", "application/json");
-      if (token) headers.set("Authorization", `Bearer ${token}`);
+      const token =
+        providedToken ?? (await this.tokenProvider?.());
 
-      const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
-      if (body !== undefined && !isFormData && !headers.has("Content-Type")) {
+      const headers = new Headers(providedHeaders);
+
+      headers.set("Accept", "application/json");
+
+      if (token) {
+        headers.set("Authorization", `Bearer ${token}`);
+      }
+
+      const isFormData =
+        typeof FormData !== "undefined" &&
+        body instanceof FormData;
+
+      if (
+        body !== undefined &&
+        !isFormData &&
+        !headers.has("Content-Type")
+      ) {
         headers.set("Content-Type", "application/json");
       }
 
-      const response = await fetch(buildUrl(this.baseUrl, path, query), {
-        ...requestInit,
-        body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
-        headers,
-        signal: controller.signal,
-      });
+      const response = await fetch(
+        buildUrl(this.baseUrl, path, query),
+        {
+          ...requestInit,
+          body:
+            body === undefined
+              ? undefined
+              : isFormData
+                ? body
+                : JSON.stringify(body),
+          headers,
+          signal: controller.signal,
+        },
+      );
+
       const payload = await parseResponseBody(response);
 
       if (!response.ok) {
-        const errorPayload = typeof payload === "object" && payload !== null ? (payload as ApiErrorPayload) : undefined;
-        throw new ApiError(response.status, errorPayload, response.statusText || "Request failed");
+        const errorPayload =
+          typeof payload === "object" && payload !== null
+            ? (payload as ApiErrorPayload)
+            : undefined;
+
+        throw new ApiError(
+          response.status,
+          errorPayload,
+          response.statusText || "Request failed",
+        );
       }
 
       return payload as TResponse;
     } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
-        throw new Error("The request timed out or was cancelled.");
+      if (
+        error instanceof DOMException &&
+        error.name === "AbortError"
+      ) {
+        throw new Error(
+          "The request timed out or was cancelled.",
+        );
       }
+
       throw error;
     } finally {
       globalThis.clearTimeout(timeout);
-      externalSignal?.removeEventListener("abort", abortFromExternalSignal);
+
+      externalSignal?.removeEventListener(
+        "abort",
+        abortFromExternalSignal,
+      );
     }
   }
 
-  get<TResponse>(path: string, options?: ApiRequestOptions) {
-    return this.request<TResponse>(path, { ...options, method: "GET" });
+  async requestBlob(
+    path: string,
+    options: ApiRequestOptions = {},
+  ): Promise<{
+    blob: Blob;
+    filename: string | null;
+  }> {
+    const {
+      body,
+      headers: providedHeaders,
+      query,
+      timeoutMs = API_TIMEOUT_MS,
+      token: providedToken,
+      signal: externalSignal,
+      ...requestInit
+    } = options;
+
+    const controller = new AbortController();
+
+    const timeout = globalThis.setTimeout(
+      () => controller.abort(),
+      timeoutMs,
+    );
+
+    const abortFromExternalSignal = () =>
+      controller.abort(externalSignal?.reason);
+
+    externalSignal?.addEventListener(
+      "abort",
+      abortFromExternalSignal,
+      { once: true },
+    );
+
+    try {
+      const token =
+        providedToken ?? (await this.tokenProvider?.());
+
+      const headers = new Headers(providedHeaders);
+
+      headers.set(
+        "Accept",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/pdf, application/octet-stream",
+      );
+
+      if (token) {
+        headers.set("Authorization", `Bearer ${token}`);
+      }
+
+      const isFormData =
+        typeof FormData !== "undefined" &&
+        body instanceof FormData;
+
+      if (
+        body !== undefined &&
+        !isFormData &&
+        !headers.has("Content-Type")
+      ) {
+        headers.set("Content-Type", "application/json");
+      }
+
+      const response = await fetch(
+        buildUrl(this.baseUrl, path, query),
+        {
+          ...requestInit,
+          body:
+            body === undefined
+              ? undefined
+              : isFormData
+                ? body
+                : JSON.stringify(body),
+          headers,
+          signal: controller.signal,
+        },
+      );
+
+      if (!response.ok) {
+        const contentType =
+          response.headers.get("content-type") || "";
+
+        let errorPayload: ApiErrorPayload | undefined;
+
+        if (contentType.includes("application/json")) {
+          const json = await response.json();
+
+          if (
+            typeof json === "object" &&
+            json !== null
+          ) {
+            errorPayload = json as ApiErrorPayload;
+          }
+        }
+
+        throw new ApiError(
+          response.status,
+          errorPayload,
+          response.statusText || "Download failed",
+        );
+      }
+
+      const contentDisposition =
+        response.headers.get("content-disposition");
+
+      const filenameMatch =
+        contentDisposition?.match(
+          /filename="?([^"]+)"?/i,
+        );
+
+      const filename =
+        filenameMatch?.[1] ?? null;
+
+      return {
+        blob: await response.blob(),
+        filename,
+      };
+    } catch (error) {
+      if (
+        error instanceof DOMException &&
+        error.name === "AbortError"
+      ) {
+        throw new Error(
+          "The request timed out or was cancelled.",
+        );
+      }
+
+      throw error;
+    } finally {
+      globalThis.clearTimeout(timeout);
+
+      externalSignal?.removeEventListener(
+        "abort",
+        abortFromExternalSignal,
+      );
+    }
   }
 
-  post<TResponse>(path: string, body?: unknown, options?: ApiRequestOptions) {
-    return this.request<TResponse>(path, { ...options, body, method: "POST" });
+  get<TResponse>(
+    path: string,
+    options?: ApiRequestOptions,
+  ) {
+    return this.request<TResponse>(
+      path,
+      {
+        ...options,
+        method: "GET",
+      },
+    );
   }
 
-  put<TResponse>(path: string, body?: unknown, options?: ApiRequestOptions) {
-    return this.request<TResponse>(path, { ...options, body, method: "PUT" });
+  getBlob(
+    path: string,
+    options?: ApiRequestOptions,
+  ) {
+    return this.requestBlob(
+      path,
+      {
+        ...options,
+        method: "GET",
+      },
+    );
   }
 
-  patch<TResponse>(path: string, body?: unknown, options?: ApiRequestOptions) {
-    return this.request<TResponse>(path, { ...options, body, method: "PATCH" });
+  post<TResponse>(
+    path: string,
+    body?: unknown,
+    options?: ApiRequestOptions,
+  ) {
+    return this.request<TResponse>(
+      path,
+      {
+        ...options,
+        body,
+        method: "POST",
+      },
+    );
   }
 
-  delete<TResponse>(path: string, options?: ApiRequestOptions) {
-    return this.request<TResponse>(path, { ...options, method: "DELETE" });
+  put<TResponse>(
+    path: string,
+    body?: unknown,
+    options?: ApiRequestOptions,
+  ) {
+    return this.request<TResponse>(
+      path,
+      {
+        ...options,
+        body,
+        method: "PUT",
+      },
+    );
+  }
+
+  patch<TResponse>(
+    path: string,
+    body?: unknown,
+    options?: ApiRequestOptions,
+  ) {
+    return this.request<TResponse>(
+      path,
+      {
+        ...options,
+        body,
+        method: "PATCH",
+      },
+    );
+  }
+
+  delete<TResponse>(
+    path: string,
+    options?: ApiRequestOptions,
+  ) {
+    return this.request<TResponse>(
+      path,
+      {
+        ...options,
+        method: "DELETE",
+      },
+    );
   }
 }
 

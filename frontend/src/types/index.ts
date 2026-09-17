@@ -25,3 +25,4 @@ export * from "./notification";
 export * from "./pos";
 export * from "./product";
 export * from "./activity-log";
+export * from "./report";
