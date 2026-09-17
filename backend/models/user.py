@@ -52,11 +52,11 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         server_default=UserRole.STAFF.value,
     )
     is_active: Mapped[bool] = mapped_column(
-        Boolean,
-        nullable=False,
-        default=True,
-        server_default="true",
-    )
+    Boolean,
+    nullable=False,
+    default=True,
+    server_default="true",
+)
 
     # --- Relationships -------------------------------------------------------
 

@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from fastapi import HTTPException, status
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import uuid
 
 from models.inventory import Inventory

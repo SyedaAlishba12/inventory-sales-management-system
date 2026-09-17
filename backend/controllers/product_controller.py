@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
-from typing import List
+from typing import Optional
 import uuid
 
 from services.product_service import ProductService
@@ -12,14 +12,17 @@ class ProductController:
     @staticmethod
     async def create_new_product(db: AsyncSession, product_in: ProductCreate):
         """Orchestrate the creation of a new product."""
-        # Convert Pydantic model to dictionary for service consumption
         product_data = product_in.model_dump()
         return await ProductService.create_product(db, product_data)
 
     @staticmethod
-    async def list_all_products(db: AsyncSession):
-        """Orchestrate retrieving all products."""
-        return await ProductService.get_all_products(db)
+    async def list_all_products(
+        db: AsyncSession, 
+        search: Optional[str] = None, 
+        category_id: Optional[uuid.UUID] = None
+    ):
+        """Orchestrate retrieving all products with optional search and category filters."""
+        return await ProductService.search_products(db, query=search, category_id=category_id)
 
     @staticmethod
     async def get_single_product(db: AsyncSession, product_id: uuid.UUID):

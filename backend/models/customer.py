@@ -17,26 +17,23 @@ from database.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 
 
 class Customer(UUIDPrimaryKeyMixin, TimestampMixin, Base):
-    """External customer who purchases goods from the business."""
+    """Customer model storing contact and billing details."""
 
     __tablename__ = "customers"
 
-    # --- Core fields ---------------------------------------------------------
-
-    name: Mapped[str] = mapped_column(String(150), nullable=False, index=True)
-    phone: Mapped[str] = mapped_column(
-        String(20), nullable=False, unique=True, index=True
-    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     email: Mapped[str | None] = mapped_column(
-        String(255), nullable=True, unique=True, index=True
+        String(255), unique=True, index=True, nullable=True
+    )
+    phone: Mapped[str | None] = mapped_column(
+        String(50), unique=True, index=True, nullable=True
     )
     address: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     sales: Mapped[list["Sale"]] = relationship(
-    "Sale",
-    back_populates="customer",
+        "Sale",
+        back_populates="customer",
     )
-
 
     def __repr__(self) -> str:
         return f"Customer(id={self.id!r}, name={self.name!r}, phone={self.phone!r})"

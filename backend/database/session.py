@@ -53,6 +53,10 @@ async def get_db_session() -> AsyncIterator[AsyncSession]:
             raise
 
 
+# Alias used by Zainab's product/inventory/notification/category routes
+get_db = get_db_session
+
+
 @asynccontextmanager
 async def session_scope(
     session_factory: async_sessionmaker[AsyncSession] = SessionFactory,

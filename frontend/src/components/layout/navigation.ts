@@ -3,6 +3,7 @@ import {
   BarChart3,
   Boxes,
   CircleDollarSign,
+  FolderKanban,
   LayoutDashboard,
   PackageSearch,
   ShoppingCart,
@@ -40,7 +41,8 @@ export const defaultNavigation: NavigationGroup[] = [
       { label: "Purchases", href: "/purchases", icon: Boxes },
       { label: "Suppliers", href: "/suppliers", icon: Truck },
       { label: "Customers", href: "/customers", icon: Users },
-    ],
+      { label: "Categories", href: "/categories", icon: FolderKanban },
+      ],
   },
   {
     label: "Insights",
