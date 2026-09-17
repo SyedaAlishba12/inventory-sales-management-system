@@ -49,7 +49,7 @@ def generate_invoice_pdf(sale: Sale) -> bytes:
     meta_rows = [
         ["Payment method", sale.payment_method.value],
         ["Status", sale.status.value],
-        ["Customer", str(sale.customer_id) if sale.customer_id else "Walk-in customer"],
+        ["Customer", sale.customer_name or "Walk-in customer"],
     ]
     meta_table = Table(meta_rows, colWidths=[45 * mm, 110 * mm])
     meta_table.setStyle(
@@ -66,11 +66,9 @@ def generate_invoice_pdf(sale: Sale) -> bytes:
 
     item_rows = [["Product", "Qty", "Unit price", "Discount", "Line total"]]
     for item in sale.items:
-        # TODO: show product name instead of raw product_id once Zainab's
-        # product read endpoint/service is available to resolve it.
         item_rows.append(
             [
-                str(item.product_id),
+                item.product_name,
                 str(item.quantity),
                 f"{item.unit_price:.2f}",
                 f"{item.item_discount:.2f}",

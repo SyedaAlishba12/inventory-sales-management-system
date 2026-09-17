@@ -26,6 +26,15 @@ class Settings(BaseSettings):
     database_max_overflow: int = Field(default=10, ge=0, le=100)
     cors_origins: str = "http://localhost:3000"
 
+    # SMTP / Email delivery — used by common/email.py for forgot/reset
+    # password. Left empty by default; email.py falls back to logging the
+    # link locally when smtp_host is unset.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from_address: str = ""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

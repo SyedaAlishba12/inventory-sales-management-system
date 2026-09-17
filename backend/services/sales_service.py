@@ -123,11 +123,29 @@ class SalesService:
         await _notify_new_sale(session, sale=sale)
 
         await session.flush()
-        await session.refresh(sale, attribute_names=["items"])
-        return sale
+        # Re-select with eager-loaded relationships (customer, items->product)
+        # so SaleRead.model_validate(sale) can read .customer_name and
+        # .items[].product_name without triggering a lazy load, which
+        # raises under async SQLAlchemy.
+        result = await session.execute(
+            select(Sale)
+            .where(Sale.id == sale.id)
+            .options(
+                selectinload(Sale.customer),
+                selectinload(Sale.items).selectinload(SaleItem.product),
+            )
+        )
+        return result.scalar_one()
 
     async def get_by_id(self, session: AsyncSession, sale_id: uuid.UUID) -> Sale | None:
-        stmt = select(Sale).where(Sale.id == sale_id).options(selectinload(Sale.items))
+        stmt = (
+            select(Sale)
+            .where(Sale.id == sale_id)
+            .options(
+                selectinload(Sale.customer),
+                selectinload(Sale.items).selectinload(SaleItem.product),
+            )
+        )
         return (await session.execute(stmt)).scalar_one_or_none()
 
     async def list(
@@ -151,7 +169,10 @@ class SalesService:
         stmt: Select = (
             select(Sale)
             .where(*filters)
-            .options(selectinload(Sale.items))
+            .options(
+                selectinload(Sale.customer),
+                selectinload(Sale.items).selectinload(SaleItem.product),
+            )
             .order_by(Sale.sale_date.desc(), Sale.id.desc())
             .offset((page - 1) * page_size)
             .limit(page_size)

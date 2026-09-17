@@ -3,6 +3,7 @@ from __future__ import annotations
 import enum
 from datetime import datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from sqlalchemy import DateTime, ForeignKey, Numeric, String, Uuid, func
@@ -10,6 +11,10 @@ from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+
+if TYPE_CHECKING:
+    from models.customer import Customer
+    from models.user import User
 
 
 class PaymentMethod(str, enum.Enum):
@@ -63,6 +68,21 @@ class Sale(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     items: Mapped[list["SaleItem"]] = relationship(
         "SaleItem", back_populates="sale", cascade="all, delete-orphan"
     )
+
+    # Matches the pattern Alishba used for SaleItem.product (back_populates
+    # on both sides). If Customer/User models don't declare the matching
+    # `sales` back_populates, SQLAlchemy will raise a clear mapper
+    # configuration error the first time this loads — easy fix at that
+    # point is just dropping the back_populates= argument here.
+    customer: Mapped["Customer | None"] = relationship("Customer", back_populates="sales")
+    user: Mapped["User"] = relationship("User", back_populates="sales")
+
+    @property
+    def customer_name(self) -> str | None:
+        """Used by SaleRead so the API returns a readable name instead of
+        a raw customer_id — Pydantic's from_attributes picks up properties
+        like a normal attribute."""
+        return self.customer.name if self.customer else None
 
     def __repr__(self) -> str:
         return f"Sale(id={self.id!r}, invoice_number={self.invoice_number!r}, total={self.total!r})"
