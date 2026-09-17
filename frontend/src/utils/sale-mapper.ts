@@ -7,6 +7,7 @@ import type { SaleItemSummary, SaleListResponse, SaleSummary } from "@/types/sal
 interface RawSaleItem {
   id: string;
   product_id: string;
+  product_name?: string | null;
   quantity: number;
   unit_price: string | number;
   item_discount: string | number;
@@ -18,6 +19,7 @@ interface RawSale {
   invoice_number: string;
   user_id: string;
   customer_id?: string | null;
+  customer_name?: string | null;
   sale_date: string;
   subtotal: string | number;
   discount: string | number;
@@ -42,6 +44,7 @@ function mapSaleItem(raw: RawSaleItem): SaleItemSummary {
   return {
     id: raw.id,
     productId: raw.product_id,
+    productName: raw.product_name?.trim() || "Unknown product",
     quantity: raw.quantity,
     unitPrice: Number(raw.unit_price),
     itemDiscount: Number(raw.item_discount),
@@ -55,6 +58,7 @@ export function mapSale(raw: RawSale): SaleSummary {
     invoiceNumber: raw.invoice_number,
     userId: raw.user_id,
     customerId: raw.customer_id,
+    customerName: raw.customer_name ?? null,
     saleDate: raw.sale_date,
     subtotal: Number(raw.subtotal),
     discount: Number(raw.discount),
@@ -76,4 +80,8 @@ export function mapSaleList(raw: RawSaleListResponse): SaleListResponse {
     total: raw.total,
     totalPages: raw.total_pages,
   };
+}
+
+export function customerDisplayName(sale: SaleSummary): string {
+  return sale.customerName?.trim() || "Walk-in customer";
 }

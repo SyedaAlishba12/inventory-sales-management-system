@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ShoppingCart } from "lucide-react";
 
 import { CartItem, ProductSearch } from "@/components/shared/pos";
@@ -14,6 +15,7 @@ import { defaultNavigation } from "@/components/layout/navigation";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apiClient } from "@/utils/api-client";
 import { mapPosProductList } from "@/utils/pos-product-mapper";
+import { mapSale } from "@/utils/sale-mapper";
 import { toastUtils } from "@/utils/toast";
 import type { CartLine, Identifier, PosProduct } from "@/types";
 
@@ -21,6 +23,7 @@ import type { CartLine, Identifier, PosProduct } from "@/types";
 const DEFAULT_TAX_RATE = 0;
 
 export default function PosPage() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<PosProduct[]>([]);
   const [searching, setSearching] = useState(false);
@@ -106,20 +109,6 @@ export default function PosPage() {
     setSearchResults([]);
   }
 
-  function addTestItem() {
-    // TEMPORARY — uses the fixed test product seeded via test_data_seed.sql
-    // (Neon SQL Editor). Safe to delete once Zainab's product search works.
-    const testProduct: PosProduct = {
-      id: "33333333-3333-3333-3333-333333333333",
-      name: "Test Wireless Mouse",
-      sku: "TEST-SKU-001",
-      price: 1500,
-      stockQuantity: 50,
-      imageUrl: null,
-    };
-    addToCart(testProduct);
-  }
-
   function updateQuantity(productId: string | number, quantity: number) {
     setCart((current) =>
       current.map((line) => (line.productId === productId ? { ...line, quantity } : line)),
@@ -145,7 +134,7 @@ export default function PosPage() {
     paymentMethod: "CASH" | "CARD" | "ONLINE";
   }) {
     try {
-      await apiClient.post("/api/pos/checkout", {
+      const raw = await apiClient.post<Parameters<typeof mapSale>[0]>("/api/pos/checkout", {
         customer_id: selectedCustomer?.id ?? null,
         items: cart.map((line) => ({
           product_id: line.productId,
@@ -158,10 +147,12 @@ export default function PosPage() {
         tax_rate: DEFAULT_TAX_RATE,
         payment_method: paymentMethod,
       });
-      toastUtils.success("Sale completed", "Invoice generated successfully.");
+      const sale = mapSale(raw);
+      toastUtils.success("Sale completed", `Invoice ${sale.invoiceNumber} generated.`);
       setCart([]);
       setDiscount(0);
       setSelectedCustomer(null);
+      router.push(`/invoices/${sale.id}`);
     } catch (error) {
       toastUtils.error(error, "Could not complete the sale");
     }
@@ -196,20 +187,11 @@ export default function PosPage() {
             )}
 
             {cart.length === 0 ? (
-              <div className="space-y-3">
-                <EmptyState
-                  icon={ShoppingCart}
-                  title="Cart is empty"
-                  description="Search for a product above and select it to add to the cart."
-                />
-                <button
-                  type="button"
-                  onClick={addTestItem}
-                  className="w-full rounded-lg border border-dashed border-input py-2 text-xs font-medium text-muted-foreground hover:bg-muted"
-                >
-                  + Add test item (dev only — remove once product search works)
-                </button>
-              </div>
+              <EmptyState
+                icon={ShoppingCart}
+                title="Cart is empty"
+                description="Search or browse products and select one to add to the cart."
+              />
             ) : (
               <div className="space-y-3">
                 {cart.map((line) => (

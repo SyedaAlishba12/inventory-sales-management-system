@@ -3,6 +3,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { formatCurrency } from "@/utils/currency";
 import { formatDateTime } from "@/utils/date";
 import { humanize } from "@/utils/format";
+import { customerDisplayName } from "@/utils/sale-mapper";
 import type { SaleSummary } from "@/types/sale";
 
 interface SalesTableProps {
@@ -24,7 +25,7 @@ export function SalesTable({ sales, loading, onRowClick }: SalesTableProps) {
     {
       id: "customer",
       header: "Customer",
-      accessor: (row) => (row.customerId ? String(row.customerId) : "Walk-in"),
+      accessor: (row) => customerDisplayName(row),
     },
     {
       id: "payment",

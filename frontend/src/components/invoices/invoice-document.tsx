@@ -3,6 +3,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { formatCurrency } from "@/utils/currency";
 import { formatDateTime } from "@/utils/date";
 import { humanize } from "@/utils/format";
+import { customerDisplayName } from "@/utils/sale-mapper";
 import type { SaleSummary } from "@/types/sale";
 
 interface InvoiceDocumentProps {
@@ -30,7 +31,7 @@ export function InvoiceDocument({ sale }: InvoiceDocumentProps) {
           <div>
             <p className="text-muted-foreground">Customer</p>
             <p className="font-medium">
-              {sale.customerId ? String(sale.customerId) : "Walk-in customer"}
+              {customerDisplayName(sale)}
             </p>
           </div>
         </div>
@@ -49,7 +50,7 @@ export function InvoiceDocument({ sale }: InvoiceDocumentProps) {
             <tbody className="divide-y">
               {sale.items.map((item) => (
                 <tr key={item.id}>
-                  <td className="px-3 py-2">{String(item.productId)}</td>
+                  <td className="px-3 py-2">{item.productName}</td>
                   <td className="px-3 py-2 text-right">{item.quantity}</td>
                   <td className="px-3 py-2 text-right">{formatCurrency(item.unitPrice, "PKR")}</td>
                   <td className="px-3 py-2 text-right">

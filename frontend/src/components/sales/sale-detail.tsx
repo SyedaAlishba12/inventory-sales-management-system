@@ -3,6 +3,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { formatCurrency } from "@/utils/currency";
 import { formatDateTime } from "@/utils/date";
 import { humanize } from "@/utils/format";
+import { customerDisplayName } from "@/utils/sale-mapper";
 import type { SaleSummary } from "@/types/sale";
 
 interface SaleDetailProps {
@@ -18,7 +19,7 @@ export function SaleDetail({ sale }: SaleDetailProps) {
           <Field label="Sale date" value={formatDateTime(sale.saleDate)} />
           <Field
             label="Customer"
-            value={sale.customerId ? String(sale.customerId) : "Walk-in customer"}
+            value={customerDisplayName(sale)}
           />
           <Field label="Payment method" value={humanize(sale.paymentMethod)} />
           <div>
@@ -52,7 +53,7 @@ export function SaleDetail({ sale }: SaleDetailProps) {
               <tbody className="divide-y">
                 {sale.items.map((item) => (
                   <tr key={item.id}>
-                    <td className="px-5 py-2.5">{String(item.productId)}</td>
+                    <td className="px-5 py-2.5">{item.productName}</td>
                     <td className="px-5 py-2.5 text-right">{item.quantity}</td>
                     <td className="px-5 py-2.5 text-right">
                       {formatCurrency(item.unitPrice, "PKR")}

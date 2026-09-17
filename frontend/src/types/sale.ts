@@ -6,6 +6,7 @@ export type SaleStatus = "COMPLETED" | "PENDING" | "CANCELLED";
 export interface SaleItemSummary {
   id: Identifier;
   productId: Identifier;
+  productName: string;
   quantity: number;
   unitPrice: number;
   itemDiscount: number;
@@ -17,6 +18,7 @@ export interface SaleSummary {
   invoiceNumber: string;
   userId: Identifier;
   customerId?: Identifier | null;
+  customerName?: string | null;
   saleDate: string;
   subtotal: number;
   discount: number;

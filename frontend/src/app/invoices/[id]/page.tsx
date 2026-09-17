@@ -40,9 +40,6 @@ export default function InvoicePage() {
     return () => controller.abort();
   }, [params.id]);
 
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-  const pdfUrl = `${apiBaseUrl}/api/sales/${params.id}/invoice/pdf`;
-
   return (
     <MainLayout navigation={defaultNavigation}>
       <div className="space-y-6">
@@ -53,7 +50,8 @@ export default function InvoicePage() {
           />
           <InvoiceActions
             disabled={!sale}
-            pdfUrl={pdfUrl}
+            saleId={params.id}
+            invoiceNumber={sale?.invoiceNumber}
             onBack={() => router.push("/sales")}
           />
         </div>

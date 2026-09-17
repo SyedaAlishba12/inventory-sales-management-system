@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, User, X } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
@@ -9,15 +9,16 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { apiClient } from "@/utils/api-client";
 import type { Identifier } from "@/types";
 
-// TODO: confirm the exact shape of Taha's GET /api/customers response and
-// adjust the field names below if they differ (this assumes REST
-// conventions matching our own /api/pos/products endpoint: a `search`
-// query param returning a plain array). Wrapped in try/catch so a wrong
-// guess just shows no results instead of crashing the POS screen.
 interface CustomerOption {
   id: Identifier;
   name: string;
   phone?: string;
+}
+
+interface RawCustomer {
+  id: Identifier;
+  name: string;
+  phone?: string | null;
 }
 
 interface CustomerPickerProps {
@@ -25,11 +26,28 @@ interface CustomerPickerProps {
   onSelect: (customer: CustomerOption | null) => void;
 }
 
+function mapCustomer(raw: RawCustomer): CustomerOption {
+  return {
+    id: raw.id,
+    name: raw.name,
+    phone: raw.phone ?? undefined,
+  };
+}
+
+function matchesQuery(customer: CustomerOption, query: string): boolean {
+  const needle = query.toLowerCase();
+  return (
+    customer.name.toLowerCase().includes(needle) ||
+    (customer.phone ?? "").toLowerCase().includes(needle)
+  );
+}
+
 export function CustomerPicker({ selectedCustomer, onSelect }: CustomerPickerProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<CustomerOption[]>([]);
   const [loading, setLoading] = useState(false);
   const debouncedQuery = useDebounce(query, 300);
+  const cacheRef = useRef<CustomerOption[] | null>(null);
 
   useEffect(() => {
     const trimmed = debouncedQuery.trim();
@@ -41,11 +59,17 @@ export function CustomerPicker({ selectedCustomer, onSelect }: CustomerPickerPro
     const controller = new AbortController();
     setLoading(true);
 
-    apiClient
-      .get<CustomerOption[]>("/api/customers", {
-        query: { search: trimmed, limit: 5 },
-        signal: controller.signal,
-      })
+    const resolve = async () => {
+      if (!cacheRef.current) {
+        const raw = await apiClient.get<RawCustomer[]>("/api/customers", {
+          signal: controller.signal,
+        });
+        cacheRef.current = raw.map(mapCustomer);
+      }
+      return cacheRef.current.filter((customer) => matchesQuery(customer, trimmed)).slice(0, 8);
+    };
+
+    resolve()
       .then(setResults)
       .catch(() => setResults([]))
       .finally(() => setLoading(false));

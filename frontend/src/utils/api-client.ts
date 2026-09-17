@@ -111,6 +111,52 @@ export class ApiClient {
   delete<TResponse>(path: string, options?: ApiRequestOptions) {
     return this.request<TResponse>(path, { ...options, method: "DELETE" });
   }
+
+  async getBlob(path: string, options: ApiRequestOptions = {}): Promise<Blob> {
+    const {
+      headers: providedHeaders,
+      query,
+      timeoutMs = API_TIMEOUT_MS,
+      token: providedToken,
+      signal: externalSignal,
+      ...requestInit
+    } = options;
+    const controller = new AbortController();
+    const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
+    const abortFromExternalSignal = () => controller.abort(externalSignal?.reason);
+    externalSignal?.addEventListener("abort", abortFromExternalSignal, { once: true });
+
+    try {
+      const token = providedToken ?? (await this.tokenProvider?.());
+      const headers = new Headers(providedHeaders);
+      headers.set("Accept", "application/pdf");
+      if (token) headers.set("Authorization", `Bearer ${token}`);
+
+      const response = await fetch(buildUrl(this.baseUrl, path, query), {
+        ...requestInit,
+        method: "GET",
+        headers,
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const payload = await parseResponseBody(response);
+        const errorPayload =
+          typeof payload === "object" && payload !== null ? (payload as ApiErrorPayload) : undefined;
+        throw new ApiError(response.status, errorPayload, response.statusText || "Request failed");
+      }
+
+      return await response.blob();
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        throw new Error("The request timed out or was cancelled.");
+      }
+      throw error;
+    } finally {
+      globalThis.clearTimeout(timeout);
+      externalSignal?.removeEventListener("abort", abortFromExternalSignal);
+    }
+  }
 }
 
 export const apiClient = new ApiClient();
