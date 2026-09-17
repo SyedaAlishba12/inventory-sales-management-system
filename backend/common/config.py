@@ -34,6 +34,11 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from_address: str = ""
 
+    # Admin Bootstrapping
+    admin_seed_email: str = ""
+    admin_seed_password: str = ""
+    admin_seed_name: str = ""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
