@@ -12,6 +12,12 @@ class Settings(BaseSettings):
     app_env: Literal["development", "testing", "production"] = "development"
     debug: bool = False
 
+    secret_key: str = "change_me_in_production"
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 7
+    reset_token_expire_minutes: int = 30
+
     database_url: str = (
         "postgresql+asyncpg://example_user:example_password@localhost:5432/example_database"
     )
@@ -20,14 +26,9 @@ class Settings(BaseSettings):
     database_max_overflow: int = Field(default=10, ge=0, le=100)
     cors_origins: str = "http://localhost:3000"
 
-    # JWT Authentication
-    secret_key: str = "change_me_in_production"
-    algorithm: str = "HS256"
-    access_token_expire_minutes: int = 30
-    refresh_token_expire_days: int = 7
-    reset_token_expire_minutes: int = 15
-
-    # SMTP / Email Delivery
+    # SMTP / Email delivery — used by common/email.py for forgot/reset
+    # password. Left empty by default; email.py falls back to logging the
+    # link locally when smtp_host is unset.
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_user: str = ""

@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from common.config import get_settings
 from database.session import dispose_database
 from routes.activity_log_routes import router as activity_log_router
+from routes.pos_routes import router as pos_router
 from routes.sales_routes import router as sales_router
 from routes.dashboard_routes import router as dashboard_router
 from routes.report_routes import router as report_router
@@ -60,6 +61,7 @@ app.mount(
 
 app.include_router(activity_log_router)
 app.include_router(sales_router)
+app.include_router(pos_router)
 
 # Zainab's routes
 app.include_router(product_router)

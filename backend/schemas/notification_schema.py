@@ -1,18 +1,41 @@
-from pydantic import BaseModel, Field
-from typing import Optional
-from datetime import datetime
 import uuid
+from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict
+
+from models.notification import NotificationType
+
 
 class NotificationResponse(BaseModel):
-    """Schema for system notification response."""
+    """Response schema for system notifications."""
+
     id: uuid.UUID
     user_id: Optional[uuid.UUID] = None
     product_id: Optional[uuid.UUID] = None
+
     title: str
     message: str
     is_read: bool
-    type: str
+    type: NotificationType
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
+
+
+class NotificationCreate(BaseModel):
+    """Schema used internally when creating a notification."""
+
+    user_id: Optional[uuid.UUID] = None
+    product_id: Optional[uuid.UUID] = None
+
+    title: str
+    message: str
+    type: NotificationType
+
+
+class NotificationMarkAllReadResponse(BaseModel):
+    """Response returned after marking all notifications as read."""
+
+    message: str
+    updated_count: int

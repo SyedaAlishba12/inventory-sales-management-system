@@ -2,9 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Plus, RefreshCw } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { MainLayout } from "@/components/layout/main-layout";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
+import { apiClient } from "@/utils/api-client";
 
 import {
   InventoryStats,
@@ -73,6 +76,12 @@ interface MovementResponse {
 // =========================================================
 
 export default function InventoryPage() {
+  const router = useRouter();
+
+  const {
+    isLoading: authLoading,
+    isAuthenticated,
+  } = useAuth();
 
   // ---------------------------------------------------------
   // STATE
@@ -99,34 +108,21 @@ export default function InventoryPage() {
   // =========================================================
 
   const fetchProducts = async () => {
-
     try {
-
-      const response =
-        await fetch("/api/products");
-
-      if (!response.ok) {
-        throw new Error(
-          "Failed to fetch products"
-        );
-      }
-
-      const data =
-        await response.json();
+      const data = await apiClient.get<Product[]>(
+        "/api/products"
+      );
 
       setProducts(data);
 
-      return data as Product[];
-
+      return data;
     } catch (error) {
-
       console.error(
         "Error fetching products:",
         error
       );
 
       return [];
-
     }
   };
 
@@ -136,42 +132,19 @@ export default function InventoryPage() {
   // =========================================================
 
   const fetchInventory = async () => {
-
     try {
+      const data = await apiClient.get<InventoryResponse[]>(
+        "/api/inventory"
+      );
 
-      const response =
-        await fetch("/api/inventory");
-
-      if (!response.ok) {
-
-        const errorData =
-          await response
-            .json()
-            .catch(() => null);
-
-        console.error(
-          "Inventory fetch error:",
-          errorData
-        );
-
-        throw new Error(
-          "Failed to fetch inventory"
-        );
-      }
-
-      return (
-        await response.json()
-      ) as InventoryResponse[];
-
+      return data;
     } catch (error) {
-
       console.error(
         "Error fetching inventory:",
         error
       );
 
       return [];
-
     }
   };
 
@@ -181,44 +154,20 @@ export default function InventoryPage() {
   // =========================================================
 
   const fetchMovements = async () => {
-
     try {
-
-      const response =
-        await fetch(
+      const data =
+        await apiClient.get<MovementResponse[]>(
           "/api/inventory/movements"
         );
 
-      if (!response.ok) {
-
-        const errorData =
-          await response
-            .json()
-            .catch(() => null);
-
-        console.error(
-          "Movement fetch error:",
-          errorData
-        );
-
-        throw new Error(
-          "Failed to fetch inventory movements"
-        );
-      }
-
-      return (
-        await response.json()
-      ) as MovementResponse[];
-
+      return data;
     } catch (error) {
-
       console.error(
         "Error fetching movements:",
         error
       );
 
       return [];
-
     }
   };
 
@@ -228,9 +177,11 @@ export default function InventoryPage() {
   // =========================================================
 
   const loadInventoryData = async () => {
+    if (authLoading || !isAuthenticated) {
+      return;
+    }
 
     try {
-
       setLoading(true);
 
       const [
@@ -267,7 +218,6 @@ export default function InventoryPage() {
         InventoryProduct[] =
         inventoryData.map(
           (item) => {
-
             const product =
               productMap.get(
                 item.product_id
@@ -313,7 +263,6 @@ export default function InventoryPage() {
         InventoryMovement[] =
         movementData.map(
           (movement) => {
-
             const product =
               productMap.get(
                 movement.product_id
@@ -360,29 +309,35 @@ export default function InventoryPage() {
       );
 
     } catch (error) {
-
       console.error(
         "Error loading inventory data:",
         error
       );
-
     } finally {
-
       setLoading(false);
-
     }
   };
 
 
   // =========================================================
-  // INITIAL LOAD
+  // AUTH CHECK + INITIAL LOAD
   // =========================================================
 
   useEffect(() => {
+    if (authLoading) {
+      return;
+    }
+
+    if (!isAuthenticated) {
+      router.replace("/login");
+      return;
+    }
 
     loadInventoryData();
-
-  }, []);
+  }, [
+    authLoading,
+    isAuthenticated,
+  ]);
 
 
   // =========================================================
@@ -390,7 +345,6 @@ export default function InventoryPage() {
   // =========================================================
 
   const stats = useMemo(() => {
-
     const openingStock =
       inventory.reduce(
         (total, item) =>
@@ -464,7 +418,6 @@ export default function InventoryPage() {
       damagedStock,
       lowStockCount,
     };
-
   }, [
     inventory,
     movements,
@@ -477,7 +430,6 @@ export default function InventoryPage() {
 
   const lowStockItems =
     useMemo(() => {
-
       return inventory
         .filter(
           (item) =>
@@ -497,7 +449,6 @@ export default function InventoryPage() {
           min_stock_level:
             item.min_stock_level,
         }));
-
     }, [inventory]);
 
 
@@ -515,13 +466,32 @@ export default function InventoryPage() {
 
 
   // =========================================================
+  // AUTH LOADING
+  // =========================================================
+
+  if (authLoading) {
+    return (
+      <MainLayout>
+        <div className="flex min-h-[400px] items-center justify-center">
+          <div className="text-center">
+            <RefreshCw className="mx-auto h-6 w-6 animate-spin text-[#0F4C5C]" />
+
+            <p className="mt-3 text-sm text-[#7A8B91]">
+              Checking authentication...
+            </p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+
+  // =========================================================
   // UI
   // =========================================================
 
   return (
-
     <MainLayout>
-
       <div className="space-y-6">
 
         {/* =================================================
@@ -531,7 +501,6 @@ export default function InventoryPage() {
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 
           <div>
-
             <h1 className="text-2xl font-bold tracking-tight text-[#0F4C5C]">
               Inventory Management
             </h1>
@@ -540,7 +509,6 @@ export default function InventoryPage() {
               Track stock levels, inventory movements,
               damaged stock, and low-stock items.
             </p>
-
           </div>
 
 
@@ -551,7 +519,11 @@ export default function InventoryPage() {
               onClick={
                 loadInventoryData
               }
-              disabled={loading}
+              disabled={
+                loading ||
+                authLoading ||
+                !isAuthenticated
+              }
               className="border-[#D7E0E3] text-[#0F4C5C]"
             >
 
@@ -564,7 +536,6 @@ export default function InventoryPage() {
               />
 
               Refresh
-
             </Button>
 
 
@@ -574,17 +545,16 @@ export default function InventoryPage() {
                   true
                 )
               }
+              disabled={!isAuthenticated}
               className="bg-[#0F4C5C] text-white hover:bg-[#0F4C5C]/90"
             >
 
               <Plus className="mr-2 size-4" />
 
               Adjust Stock
-
             </Button>
 
           </div>
-
         </div>
 
 
@@ -630,19 +600,15 @@ export default function InventoryPage() {
         ================================================= */}
 
         {loading ? (
-
           <div className="rounded-xl border border-[#D7E0E3] bg-card py-12 text-center text-[#7A8B91]">
             Loading inventory...
           </div>
-
         ) : (
-
           <InventoryTable
             inventory={
               inventory
             }
           />
-
         )}
 
 
@@ -651,13 +617,11 @@ export default function InventoryPage() {
         ================================================= */}
 
         {!loading && (
-
           <InventoryMovementTable
             movements={
               movements
             }
           />
-
         )}
 
 
@@ -686,8 +650,6 @@ export default function InventoryPage() {
         />
 
       </div>
-
     </MainLayout>
-
   );
 }
