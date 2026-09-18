@@ -86,6 +86,29 @@ async def test_signup_success(app_client: AsyncClient, session_factory: async_se
 
 
 @pytest.mark.asyncio
+async def test_signup_role_injection_ignored(app_client: AsyncClient, session_factory: async_sessionmaker[AsyncSession]) -> None:
+    payload = {
+        "full_name": "Hacker User",
+        "email": "hacker@example.com",
+        "password": "StrongPassword123!",
+        "role": "ADMIN"
+    }
+    response = await app_client.post("/api/auth/signup", json=payload)
+    
+    # Depending on Pydantic's extra fields config, it might return 422 or ignore it and return 201.
+    # We accept either as long as they don't become an admin.
+    if response.status_code == 201:
+        data = response.json()
+        assert data["role"] == "STAFF", "Role injection must be ignored"
+        
+        async with session_factory() as session:
+            user = (await session.execute(select(User).where(User.email == "hacker@example.com"))).scalar_one()
+            assert user.role == UserRole.STAFF, "User must be created as STAFF, not ADMIN"
+    else:
+        assert response.status_code == 422, "If not 201, it must be 422 Unprocessable Entity"
+
+
+@pytest.mark.asyncio
 async def test_signup_duplicate_email_rejected(app_client: AsyncClient) -> None:
     payload = {
         "full_name": "Duplicate User",

@@ -21,7 +21,7 @@ class Supplier(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     name: Mapped[str] = mapped_column(String(150), nullable=False, index=True)
     company: Mapped[str | None] = mapped_column(String(150), nullable=True)
-    phone: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    phone: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
     email: Mapped[str | None] = mapped_column(
         String(255), nullable=True, index=True
     )

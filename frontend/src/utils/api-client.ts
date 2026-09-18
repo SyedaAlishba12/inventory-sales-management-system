@@ -114,6 +114,7 @@ export class ApiClient {
 
   async getBlob(path: string, options: ApiRequestOptions = {}): Promise<Blob> {
     const {
+      body: _body,
       headers: providedHeaders,
       query,
       timeoutMs = API_TIMEOUT_MS,
@@ -158,5 +159,4 @@ export class ApiClient {
     }
   }
 }
-
 export const apiClient = new ApiClient();
