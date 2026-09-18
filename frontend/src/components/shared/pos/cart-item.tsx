@@ -1,5 +1,6 @@
 "use client"; 
  
+import { useState } from "react";
 import { Package, Trash2 } from "lucide-react"; 
  
 import { QuantitySelector } from "@/components/shared/pos/quantity-selector"; 
@@ -15,12 +16,20 @@ interface CartItemProps {
 } 
  
 export function CartItem({ disabled, item, onQuantityChange, onRemove }: CartItemProps) { 
+  const [imageFailed, setImageFailed] = useState(false);
+
   return ( 
     <div className="flex gap-3 rounded-xl border border-[#D7E0E3] bg-card p-3"> 
       <div className="relative flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#EAF0F2]"> 
-        {item.imageUrl ? ( 
+        {item.imageUrl && !imageFailed ? ( 
           // eslint-disable-next-line @next/next/no-img-element 
-          <img src={item.imageUrl} alt={item.name} loading="lazy" className="size-full object-cover" /> 
+          <img
+            src={item.imageUrl}
+            alt={item.name}
+            loading="lazy"
+            className="size-full object-cover"
+            onError={() => setImageFailed(true)}
+          /> 
         ) : ( 
           <Package className="size-6 text-[#7A8B91]" /> 
         )} 

@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Text, Boolean, ForeignKey, DateTime
+from sqlalchemy import Column, String, Text, Boolean, ForeignKey, DateTime, Enum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -43,10 +43,13 @@ class Notification(Base):
     message = Column(Text, nullable=False)
     is_read = Column(Boolean, default=False, nullable=False)
     type = Column(
-        String(50),
+        Enum(
+            "LOW_STOCK", "MULTIPLE_LOW_STOCK", "NEW_SALE", "PURCHASE_RECEIVED",
+            name="notification_type",
+        ),
         nullable=False,
         index=True,
-    )  # LOW_STOCK, MULTIPLE_LOW_STOCK, NEW_SALE, PURCHASE_RECEIVED
+    )
 
     # UTC Timestamp
     created_at = Column(

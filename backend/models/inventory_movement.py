@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Integer, Text, ForeignKey, DateTime
+from sqlalchemy import Column, String, Integer, Text, ForeignKey, DateTime, Enum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
@@ -37,11 +37,21 @@ class InventoryMovement(Base):
     )
 
     # Movement details
+    # DB column is a native Postgres ENUM named "movement_type" (confirmed
+    # by the checkout 500 error: "column movement_type is of type
+    # movement_type but expression is of type character varying"). Alishba
+    # said she fixed this exact thing before the migration ran; this file
+    # reverted to plain String somewhere along the way — same class of
+    # issue as the earlier stale-file problem, just not caused by my zip
+    # this time. Fixing directly since it blocks every checkout.
     movement_type = Column(
-        String(50),
+        Enum(
+            "STOCK_IN", "STOCK_OUT", "DAMAGED", "ADJUSTMENT",
+            name="movement_type",
+        ),
         nullable=False,
         index=True,
-    )  # STOCK_IN, STOCK_OUT, DAMAGED, ADJUSTMENT
+    )
 
     quantity = Column(Integer, nullable=False)
     previous_stock = Column(Integer, nullable=False)
