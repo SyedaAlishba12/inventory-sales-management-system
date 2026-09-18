@@ -26,6 +26,7 @@ class ActivityLogCreate(BaseModel):
 class ActivityLogRead(BaseModel):
     id: UUID
     user_id: UUID | None
+    user_name: str | None
     action: str
     entity_type: str | None
     entity_id: UUID | None
@@ -41,3 +42,4 @@ class ActivityLogListResponse(BaseModel):
     page_size: int
     total: int
     total_pages: int
+

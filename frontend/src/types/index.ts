@@ -28,3 +28,5 @@ export * from "./product";
 export * from "./purchase";
 export * from "./supplier";
 export * from "./user";
+export * from "./activity-log";
+export * from "./report";

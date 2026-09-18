@@ -1,192 +1,362 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 from fastapi import HTTPException, status
-from typing import List, Dict, Any, Optional
-import uuid
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.inventory import Inventory
-from models.inventory_movement import InventoryMovement
+from models.inventory_movement import InventoryMovement, MovementType
+from models.notification import Notification, NotificationType
 from models.product import Product
-from models.notification import Notification
+
 
 class InventoryService:
-    """Service layer for handling stock adjustments, movements, and low stock tracking."""
 
     @staticmethod
-    async def get_all_inventory(db: AsyncSession) -> List[Inventory]:
-        """Retrieve current stock levels for all products."""
-        result = await db.execute(select(Inventory))
-        return result.scalars().all()
-
-    @staticmethod
-    async def get_inventory_movements(db: AsyncSession) -> List[InventoryMovement]:
-        """Retrieve the audit trail of all inventory movements ordered by latest first."""
-        result = await db.execute(select(InventoryMovement).order_by(InventoryMovement.created_at.desc()))
-        return result.scalars().all()
-
-    @staticmethod
-    async def get_low_stock_products(db: AsyncSession) -> List[Dict[str, Any]]:
-        """Detect products where current stock is at or below minimum level."""
-        query = (
-            select(Inventory, Product)
-            .join(Product, Inventory.product_id == Product.id)
-            .where(Inventory.current_stock <= Product.min_stock_level)
+    async def get_all_inventory(
+        db: AsyncSession,
+    ) -> list[Inventory]:
+        result = await db.execute(
+            select(Inventory).order_by(Inventory.created_at.desc())
         )
-        result = await db.execute(query)
-        low_stock_items = []
-        for inv, prod in result.all():
-            low_stock_items.append({
-                "product_id": prod.id,
-                "product_name": prod.name,
-                "sku": prod.sku,
-                "current_stock": inv.current_stock,
-                "min_stock_level": prod.min_stock_level
-            })
-        return low_stock_items
+
+        return list(result.scalars().all())
 
     @staticmethod
-    async def process_stock_in(
-        db: AsyncSession, 
-        product_id: uuid.UUID, 
-        quantity: int, 
-        user_id: uuid.UUID, 
-        reason: str = "Purchase Received"
+    async def get_inventory_movements(
+        db: AsyncSession,
+    ) -> list[InventoryMovement]:
+        result = await db.execute(
+            select(InventoryMovement).order_by(
+                InventoryMovement.created_at.desc()
+            )
+        )
+
+        return list(result.scalars().all())
+
+    @staticmethod
+    async def get_low_stock_products(
+        db: AsyncSession,
+    ) -> list[Inventory]:
+        result = await db.execute(
+            select(Inventory)
+            .join(Product, Product.id == Inventory.product_id)
+            .where(
+                Inventory.current_stock <= Product.min_stock_level
+            )
+            .order_by(Inventory.current_stock.asc())
+        )
+
+        return list(result.scalars().all())
+
+    @staticmethod
+    async def _get_product(
+        db: AsyncSession,
+        product_id,
+    ) -> Product:
+        product = await db.get(Product, product_id)
+
+        if not product:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Product not found.",
+            )
+
+        return product
+
+    @staticmethod
+    async def _get_inventory(
+        db: AsyncSession,
+        product_id,
+        lock: bool = False,
     ) -> Inventory:
-        """Increase stock when a purchase is received and record a STOCK_IN movement."""
-        result = await db.execute(select(Inventory).where(Inventory.product_id == product_id))
-        inventory = result.scalars().first()
-        
+        query = select(Inventory).where(
+            Inventory.product_id == product_id
+        )
+
+        # Locks the inventory row until the current transaction
+        # is committed or rolled back.
+        if lock:
+            query = query.with_for_update()
+
+        result = await db.execute(query)
+        inventory = result.scalar_one_or_none()
+
         if not inventory:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Inventory record not found for this product."
+                detail="Inventory record not found for this product.",
             )
+
+        return inventory
+
+    @staticmethod
+    async def _create_low_stock_notification(
+        db: AsyncSession,
+        product: Product,
+        current_stock: int,
+    ) -> None:
+        """
+        Creates a low-stock notification only if the product
+        is currently at/below its minimum stock level and there
+        is no existing unread low-stock notification for it.
+
+        user_id is intentionally left NULL so this can act as
+        a system/broadcast notification.
+        """
+
+        if current_stock > product.min_stock_level:
+            return
+
+        existing_result = await db.execute(
+            select(Notification)
+            .where(
+                Notification.product_id == product.id,
+                Notification.type == NotificationType.LOW_STOCK,
+                Notification.is_read.is_(False),
+            )
+            .limit(1)
+        )
+
+        existing_notification = existing_result.scalar_one_or_none()
+
+        if existing_notification:
+            return
+
+        notification = Notification(
+            user_id=None,
+            product_id=product.id,
+            title="Low Stock Alert",
+            message=(
+                f"{product.name} is low in stock. "
+                f"Current stock: {current_stock}. "
+                f"Minimum stock level: {product.min_stock_level}."
+            ),
+            type=NotificationType.LOW_STOCK,
+            is_read=False,
+        )
+
+        db.add(notification)
+
+    @staticmethod
+    async def process_stock_in(
+        db: AsyncSession,
+        product_id,
+        quantity: int,
+        user_id,
+        reason: str = "Purchase Received",
+    ) -> Inventory:
+
+        if quantity <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Stock-in quantity must be greater than zero.",
+            )
+
+        product = await InventoryService._get_product(
+            db,
+            product_id,
+        )
+
+        inventory = await InventoryService._get_inventory(
+            db,
+            product_id,
+            lock=True,
+        )
 
         previous_stock = inventory.current_stock
         new_stock = previous_stock + quantity
+
         inventory.current_stock = new_stock
 
         movement = InventoryMovement(
             product_id=product_id,
             user_id=user_id,
-            movement_type="STOCK_IN",
+            movement_type=MovementType.STOCK_IN,
             quantity=quantity,
             previous_stock=previous_stock,
             new_stock=new_stock,
-            reason=reason
+            reason=reason,
         )
+
         db.add(movement)
 
-        # Check for low stock status and trigger notification if necessary
-        product = await db.get(Product, product_id)
-        if product and new_stock <= product.min_stock_level:
-            notification = Notification(
-                product_id=product.id,
-                title="Low Stock Alert",
-                message=f"Product '{product.name}' is low in stock. Current stock: {new_stock}.",
-                type="LOW_STOCK",
-                is_read=False
-            )
-            db.add(notification)
+        await InventoryService._create_low_stock_notification(
+            db,
+            product,
+            new_stock,
+        )
 
-        await db.commit()
-        await db.refresh(inventory)
+        # IMPORTANT:
+        # No commit here.
+        # The caller controls the transaction.
+
         return inventory
 
     @staticmethod
     async def process_stock_out(
-        db: AsyncSession, 
-        product_id: uuid.UUID, 
-        quantity: int, 
-        user_id: uuid.UUID, 
-        reason: str = "Sale Completed"
+        db: AsyncSession,
+        product_id,
+        quantity: int,
+        user_id,
+        reason: str = "Sale Completed",
     ) -> Inventory:
-        """Decrease stock when a sale is completed and record a STOCK_OUT movement."""
-        result = await db.execute(select(Inventory).where(Inventory.product_id == product_id))
-        inventory = result.scalars().first()
-        
-        if not inventory:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Inventory record not found for this product."
-            )
 
-        previous_stock = inventory.current_stock
-        if previous_stock < quantity:
+        if quantity <= 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Insufficient stock for product ID {product_id}. Available: {previous_stock}, Requested: {quantity}."
+                detail="Stock-out quantity must be greater than zero.",
+            )
+
+        product = await InventoryService._get_product(
+            db,
+            product_id,
+        )
+
+        inventory = await InventoryService._get_inventory(
+            db,
+            product_id,
+            lock=True,
+        )
+
+        previous_stock = inventory.current_stock
+
+        if quantity > previous_stock:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Insufficient stock for product '{product.name}'. "
+                    f"Available stock: {previous_stock}, "
+                    f"requested: {quantity}."
+                ),
             )
 
         new_stock = previous_stock - quantity
+
         inventory.current_stock = new_stock
 
         movement = InventoryMovement(
             product_id=product_id,
             user_id=user_id,
-            movement_type="STOCK_OUT",
+            movement_type=MovementType.STOCK_OUT,
             quantity=quantity,
             previous_stock=previous_stock,
             new_stock=new_stock,
-            reason=reason
+            reason=reason,
         )
+
         db.add(movement)
 
-        # Trigger low stock notification if current stock falls below minimum level
-        product = await db.get(Product, product_id)
-        if product and new_stock <= product.min_stock_level:
-            notification = Notification(
-                product_id=product.id,
-                title="Low Stock Alert",
-                message=f"Product '{product.name}' is low in stock. Current stock: {new_stock}.",
-                type="LOW_STOCK",
-                is_read=False
-            )
-            db.add(notification)
+        await InventoryService._create_low_stock_notification(
+            db,
+            product,
+            new_stock,
+        )
 
-        await db.commit()
-        await db.refresh(inventory)
+        # IMPORTANT:
+        # No commit here.
+        # The caller controls the transaction.
+
         return inventory
 
     @staticmethod
     async def adjust_stock(
         db: AsyncSession,
-        product_id: uuid.UUID,
+        product_id,
         quantity: int,
-        movement_type: str,
-        user_id: uuid.UUID,
-        reason: Optional[str] = None
+        movement_type: MovementType,
+        user_id,
+        reason: str | None = None,
     ) -> Inventory:
-        """Handle manual stock adjustments such as DAMAGED or general ADJUSTMENT types."""
-        result = await db.execute(select(Inventory).where(Inventory.product_id == product_id))
-        inventory = result.scalars().first()
 
-        if not inventory:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Inventory record not found for this product."
-            )
+        product = await InventoryService._get_product(
+            db,
+            product_id,
+        )
+
+        inventory = await InventoryService._get_inventory(
+            db,
+            product_id,
+            lock=True,
+        )
 
         previous_stock = inventory.current_stock
 
-        if movement_type == "STOCK_IN":
-            new_stock = previous_stock + quantity
-        elif movement_type in ["STOCK_OUT", "DAMAGED"]:
-            if previous_stock < quantity:
+        # --------------------------------------------------
+        # STOCK IN
+        # --------------------------------------------------
+        if movement_type == MovementType.STOCK_IN:
+
+            if quantity <= 0:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Adjustment quantity exceeds current stock level."
+                    detail="Stock-in quantity must be greater than zero.",
                 )
+
+            new_stock = previous_stock + quantity
+
+        # --------------------------------------------------
+        # STOCK OUT
+        # --------------------------------------------------
+        elif movement_type == MovementType.STOCK_OUT:
+
+            if quantity <= 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Stock-out quantity must be greater than zero.",
+                )
+
+            if quantity > previous_stock:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f"Insufficient stock. "
+                        f"Available stock: {previous_stock}, "
+                        f"requested: {quantity}."
+                    ),
+                )
+
             new_stock = previous_stock - quantity
-            if movement_type == "DAMAGED":
-                inventory.damaged_stock += quantity
-        elif movement_type == "ADJUSTMENT":
-            # Direct override or delta adjustment based on business rule
+
+        # --------------------------------------------------
+        # DAMAGED
+        # --------------------------------------------------
+        elif movement_type == MovementType.DAMAGED:
+
+            if quantity <= 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Damaged quantity must be greater than zero.",
+                )
+
+            if quantity > previous_stock:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f"Cannot mark more damaged stock than available. "
+                        f"Available stock: {previous_stock}."
+                    ),
+                )
+
+            new_stock = previous_stock - quantity
+            inventory.damaged_stock += quantity
+
+        # --------------------------------------------------
+        # ADJUSTMENT
+        # --------------------------------------------------
+        elif movement_type == MovementType.ADJUSTMENT:
+
+            if quantity < 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Adjusted stock cannot be negative.",
+                )
+
+            # For ADJUSTMENT, quantity means the TARGET stock.
             new_stock = quantity
+
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid movement type specified."
+                detail="Invalid inventory movement type.",
             )
 
         inventory.current_stock = new_stock
@@ -198,21 +368,19 @@ class InventoryService:
             quantity=quantity,
             previous_stock=previous_stock,
             new_stock=new_stock,
-            reason=reason
+            reason=reason,
         )
+
         db.add(movement)
 
-        product = await db.get(Product, product_id)
-        if product and new_stock <= product.min_stock_level:
-            notification = Notification(
-                product_id=product.id,
-                title="Low Stock Alert",
-                message=f"Product '{product.name}' is low in stock. Current stock: {new_stock}.",
-                type="LOW_STOCK",
-                is_read=False
-            )
-            db.add(notification)
+        await InventoryService._create_low_stock_notification(
+            db,
+            product,
+            new_stock,
+        )
 
-        await db.commit()
-        await db.refresh(inventory)
+        # IMPORTANT:
+        # No commit/refresh here.
+        # The route or parent transaction handles it.
+
         return inventory

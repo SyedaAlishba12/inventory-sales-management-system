@@ -9,6 +9,9 @@ from common.config import get_settings
 from database.session import dispose_database
 from routes.activity_log_routes import router as activity_log_router
 from routes.sales_routes import router as sales_router
+from routes.dashboard_routes import router as dashboard_router
+from routes.report_routes import router as report_router
+from routes.export_routes import router as export_router
 
 # --- Zainab's module routers (products-inventory-notifications) ---
 from routes.product_routes import router as product_router
@@ -71,6 +74,9 @@ app.include_router(purchase_router)
 app.include_router(supplier_router)
 app.include_router(user_router)
 
+app.include_router(dashboard_router)
+app.include_router(report_router)
+app.include_router(export_router)
 
 @app.get("/")
 def root():
