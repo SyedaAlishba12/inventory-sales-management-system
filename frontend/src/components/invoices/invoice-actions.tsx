@@ -20,7 +20,7 @@ export function InvoiceActions({ disabled, saleId, invoiceNumber, onBack }: Invo
   async function handleDownload() {
     setDownloading(true);
     try {
-      const blob = await apiClient.getBlob(`/api/sales/${saleId}/invoice/pdf`);
+      const { blob } = await apiClient.getBlob(`/api/sales/${saleId}/invoice/pdf`);
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;

@@ -17,11 +17,10 @@ import {
 } from "@/components/ui/dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apiClient } from "@/utils/api-client";
-import { getErrorMessage } from "@/utils/api-error-handler";
 import type { SupplierCreate, SupplierResponse } from "@/types/supplier";
 import { toastUtils } from "@/utils/toast";
 
-export default function SuppliersPage() {
+function SuppliersContent() {
   const router = useRouter();
 
   const [suppliers, setSuppliers] = useState<SupplierResponse[]>([]);
@@ -91,51 +90,67 @@ export default function SuppliersPage() {
   ];
 
   return (
-    <AuthGuard>
-      <div className="space-y-6 p-6 pb-16 lg:p-10 lg:pb-20">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-[#0F4C5C]">Suppliers</h1>
-            <p className="text-sm text-muted-foreground">Manage your supplier database.</p>
-          </div>
-          <Button onClick={() => setIsAddOpen(true)}>
-            <Plus className="mr-2 size-4" />
-            Add Supplier
-          </Button>
+    <div className="space-y-6 p-6 pb-16 lg:p-10 lg:pb-20">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-[#0F4C5C]">
+            Suppliers
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Manage your supplier database.
+          </p>
         </div>
 
-        <div className="flex items-center gap-4">
-          <SearchBar
-            value={search}
-            onChange={setSearch}
-            placeholder="Search suppliers by name, email, or phone..."
-            className="max-w-md"
-          />
-        </div>
-
-        <DataTable
-          columns={columns}
-          data={suppliers}
-          getRowId={(row) => row.id}
-          loading={isLoading}
-          onRowClick={(row) => router.push(`/suppliers/${row.id}`)}
-          emptyTitle="No suppliers found"
-          emptyDescription={search ? "No suppliers match your search criteria." : "Get started by adding your first supplier."}
-        />
-
-        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Supplier</DialogTitle>
-            </DialogHeader>
-            <SupplierForm
-              onSubmit={handleAddSupplier as any}
-              onCancel={() => setIsAddOpen(false)}
-              isLoading={isSubmitting}
-            />
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => setIsAddOpen(true)}>
+          <Plus className="mr-2 size-4" />
+          Add Supplier
+        </Button>
       </div>
+
+      <div className="flex items-center gap-4">
+        <SearchBar
+          value={search}
+          onChange={setSearch}
+          placeholder="Search suppliers by name, email, or phone..."
+          className="max-w-md"
+        />
+      </div>
+
+      <DataTable
+        columns={columns}
+        data={suppliers}
+        getRowId={(row) => row.id}
+        loading={isLoading}
+        onRowClick={(row) => router.push(`/suppliers/${row.id}`)}
+        emptyTitle="No suppliers found"
+        emptyDescription={
+          search
+            ? "No suppliers match your search criteria."
+            : "Get started by adding your first supplier."
+        }
+      />
+
+      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Supplier</DialogTitle>
+          </DialogHeader>
+
+          <SupplierForm
+            onSubmit={handleAddSupplier as any}
+            onCancel={() => setIsAddOpen(false)}
+            isLoading={isSubmitting}
+          />
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+export default function SuppliersPage() {
+  return (
+    <AuthGuard requireAdmin>
+      <SuppliersContent />
     </AuthGuard>
   );
 }

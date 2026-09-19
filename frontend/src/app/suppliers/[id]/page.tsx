@@ -19,25 +19,21 @@ import {
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/utils/api-client";
-import { getErrorMessage } from "@/utils/api-error-handler";
 import type { SupplierResponse, SupplierUpdate } from "@/types/supplier";
 import type { PurchaseResponse } from "@/types/purchase";
 import { toastUtils } from "@/utils/toast";
 import { formatCurrency } from "@/utils/currency";
-import { formatDate } from "@/utils/date";
 
-export default function SupplierDetailPage({ params }: { params: Promise<{ id: string }> }) {
+function SupplierDetailContent({ id }: { id: string }) {
   const router = useRouter();
-  const resolvedParams = use(params);
-  const id = resolvedParams.id;
 
   const [supplier, setSupplier] = useState<SupplierResponse | null>(null);
   const [purchases, setPurchases] = useState<PurchaseResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -46,8 +42,11 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
     try {
       const [supplierData, purchasesData] = await Promise.all([
         apiClient.get<SupplierResponse>(`/api/suppliers/${id}`),
-        apiClient.get<PurchaseResponse[]>(`/api/suppliers/${id}/purchases`).catch(() => [])
+        apiClient
+          .get<PurchaseResponse[]>(`/api/suppliers/${id}/purchases`)
+          .catch(() => []),
       ]);
+
       setSupplier(supplierData);
       setPurchases(purchasesData);
     } catch (err) {
@@ -117,7 +116,7 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
   if (isLoading) {
     return (
       <div className="p-6">
-        <Skeleton className="h-8 w-64 mb-6" />
+        <Skeleton className="mb-6 h-8 w-64" />
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <Skeleton className="h-40 rounded-xl" />
           <Skeleton className="h-40 rounded-xl" />
@@ -128,81 +127,106 @@ export default function SupplierDetailPage({ params }: { params: Promise<{ id: s
 
   if (!supplier) {
     return (
-      <div className="p-6 flex flex-col items-center justify-center min-h-[50vh]">
-        <h2 className="text-xl font-bold mb-4">Supplier not found</h2>
-        <Button onClick={() => router.push("/suppliers")}>Back to Suppliers</Button>
+      <div className="flex min-h-[50vh] flex-col items-center justify-center p-6">
+        <h2 className="mb-4 text-xl font-bold">Supplier not found</h2>
+        <Button onClick={() => router.push("/suppliers")}>
+          Back to Suppliers
+        </Button>
       </div>
     );
   }
 
   return (
-    <AuthGuard>
-      <div className="space-y-6 p-6 pb-16 lg:p-10 lg:pb-20">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/suppliers">
-              <ArrowLeft className="size-4" />
-            </Link>
+    <div className="space-y-6 p-6 pb-16 lg:p-10 lg:pb-20">
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" asChild>
+          <Link href="/suppliers">
+            <ArrowLeft className="size-4" />
+          </Link>
+        </Button>
+
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold tracking-tight text-[#0F4C5C]">
+            {supplier.name}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {supplier.company ? `Company: ${supplier.company} • ` : ""}
+            {supplier.email || "No email"} • {supplier.phone || "No phone"}
+          </p>
+        </div>
+
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsEditOpen(true)}>
+            <Edit className="mr-2 size-4" />
+            Edit
           </Button>
-          <div className="flex-1">
-            <h1 className="text-2xl font-bold tracking-tight text-[#0F4C5C]">{supplier.name}</h1>
-            <p className="text-sm text-muted-foreground">{supplier.company ? `Company: ${supplier.company} • ` : ""}{supplier.email || "No email"} • {supplier.phone || "No phone"}</p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setIsEditOpen(true)}>
-              <Edit className="mr-2 size-4" />
-              Edit
-            </Button>
-            <Button variant="destructive" onClick={() => setIsDeleteDialogOpen(true)}>
-              <Trash2 className="mr-2 size-4" />
-              Delete
-            </Button>
-          </div>
+
+          <Button
+            variant="destructive"
+            onClick={() => setIsDeleteDialogOpen(true)}
+          >
+            <Trash2 className="mr-2 size-4" />
+            Delete
+          </Button>
         </div>
+      </div>
 
-        <div className="rounded-xl border bg-card p-6">
-          <h2 className="text-lg font-semibold mb-4">Address</h2>
-          <p className="text-sm">{supplier.address || "No address provided."}</p>
-        </div>
+      <div className="rounded-xl border bg-card p-6">
+        <h2 className="mb-4 text-lg font-semibold">Address</h2>
+        <p className="text-sm">{supplier.address || "No address provided."}</p>
+      </div>
 
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold">Purchase Orders</h2>
-          <DataTable
-            columns={columns}
-            data={purchases}
-            getRowId={(row) => row.id}
-            emptyTitle="No purchases"
-            emptyDescription="You haven't made any purchases from this supplier yet."
-          />
-        </div>
+      <div className="space-y-4">
+        <h2 className="text-xl font-bold">Purchase Orders</h2>
 
-        {/* Edit Dialog */}
-        <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Edit Supplier</DialogTitle>
-            </DialogHeader>
-            <SupplierForm
-              initialData={supplier}
-              onSubmit={handleEditSupplier as any}
-              onCancel={() => setIsEditOpen(false)}
-              isLoading={isSubmitting}
-            />
-          </DialogContent>
-        </Dialog>
-
-        {/* Delete Confirmation */}
-        <ConfirmationDialog
-          open={isDeleteDialogOpen}
-          onOpenChange={setIsDeleteDialogOpen}
-          title="Delete Supplier"
-          description={`Are you sure you want to delete ${supplier.name}? This action cannot be undone.`}
-          confirmLabel="Delete"
-          destructive
-          loading={isDeleting}
-          onConfirm={handleDeleteSupplier}
+        <DataTable
+          columns={columns}
+          data={purchases}
+          getRowId={(row) => row.id}
+          emptyTitle="No purchases"
+          emptyDescription="You haven't made any purchases from this supplier yet."
         />
       </div>
+
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Supplier</DialogTitle>
+          </DialogHeader>
+
+          <SupplierForm
+            initialData={supplier}
+            onSubmit={handleEditSupplier as any}
+            onCancel={() => setIsEditOpen(false)}
+            isLoading={isSubmitting}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmationDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        title="Delete Supplier"
+        description={`Are you sure you want to delete ${supplier.name}? This action cannot be undone.`}
+        confirmLabel="Delete"
+        destructive
+        loading={isDeleting}
+        onConfirm={handleDeleteSupplier}
+      />
+    </div>
+  );
+}
+
+export default function SupplierDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const resolvedParams = use(params);
+
+  return (
+    <AuthGuard requireAdmin>
+      <SupplierDetailContent id={resolvedParams.id} />
     </AuthGuard>
   );
 }

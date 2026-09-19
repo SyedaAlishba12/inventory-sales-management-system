@@ -17,6 +17,7 @@ class DashboardStats(BaseModel):
     monthly_revenue: Decimal
 
 
+
 class DailySalesPoint(BaseModel):
     date: date
     sales: Decimal
@@ -47,6 +48,14 @@ class LowStockItem(BaseModel):
     current_stock: int
     min_stock_level: int
 
+class InventoryOverviewItem(BaseModel):
+    product_id: UUID
+    product_name: str
+    sku: str
+    current_stock: int
+    min_stock_level: int
+    status: str
+
 
 class RecentSale(BaseModel):
     id: UUID
@@ -68,3 +77,4 @@ class DashboardResponse(BaseModel):
     category_revenue: list[CategoryRevenuePoint]
     low_stock_items: list[LowStockItem]
     recent_sales: list[RecentSale]
+    inventory_overview: list[InventoryOverviewItem]

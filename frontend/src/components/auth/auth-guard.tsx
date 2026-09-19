@@ -24,20 +24,27 @@ interface AuthGuardProps {
   requireAdmin?: boolean;
 }
 
-export function AuthGuard({ children, requireAdmin = false }: AuthGuardProps) {
+export function AuthGuard({
+  children,
+  requireAdmin = false,
+}: AuthGuardProps) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
 
+  const role = user?.role?.toLowerCase();
+
   useEffect(() => {
     if (isLoading) return;
+
     if (!user) {
       router.replace("/login");
       return;
     }
-    if (requireAdmin && user.role !== "admin") {
+
+    if (requireAdmin && role !== "admin") {
       router.replace("/dashboard");
     }
-  }, [isLoading, user, requireAdmin, router]);
+  }, [isLoading, user, role, requireAdmin, router]);
 
   if (isLoading) {
     return (
@@ -48,7 +55,7 @@ export function AuthGuard({ children, requireAdmin = false }: AuthGuardProps) {
   }
 
   // While redirecting, don't flash the protected content.
-  if (!user || (requireAdmin && user.role !== "admin")) {
+  if (!user || (requireAdmin && role !== "admin")) {
     return null;
   }
 

@@ -18,6 +18,7 @@ from schemas.dashboard import (
     DailySalesPoint,
     DashboardResponse,
     DashboardStats,
+    InventoryOverviewItem,
     LowStockItem,
     MonthlySalesPoint,
     RecentSale,
@@ -376,6 +377,52 @@ class DashboardService:
         ]
 
         # ---------------------------------------------------------
+        # Inventory Overview - top 5 products
+        #
+        # This provides the general inventory table shown on the
+        # dashboard. It is separate from low_stock_items because
+        # the dashboard inventory overview should also include
+        # healthy products.
+        # ---------------------------------------------------------
+        inventory_overview_stmt = (
+            select(
+                Product.id.label("product_id"),
+                Product.name.label("product_name"),
+                Product.sku.label("sku"),
+                Inventory.current_stock.label("current_stock"),
+                Product.min_stock_level.label("min_stock_level"),
+            )
+            .join(
+                Inventory,
+                Inventory.product_id == Product.id,
+            )
+            .order_by(
+                Product.name.asc(),
+            )
+            .limit(5)
+        )
+
+        inventory_overview_rows = (
+            await session.execute(inventory_overview_stmt)
+        ).all()
+
+        inventory_overview = [
+            InventoryOverviewItem(
+                product_id=row.product_id,
+                product_name=row.product_name,
+                sku=row.sku,
+                current_stock=int(row.current_stock),
+                min_stock_level=int(row.min_stock_level),
+                status=(
+                    "Low"
+                    if row.current_stock <= row.min_stock_level
+                    else "Healthy"
+                ),
+            )
+            for row in inventory_overview_rows
+        ]
+
+        # ---------------------------------------------------------
         # Recent Sales - latest 5 completed sales
         # ---------------------------------------------------------
         recent_sales_stmt = (
@@ -438,6 +485,7 @@ class DashboardService:
             category_revenue=category_revenue,
             low_stock_items=low_stock_items,
             recent_sales=recent_sales,
+            inventory_overview=inventory_overview,
         )
 
 

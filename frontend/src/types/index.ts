@@ -21,6 +21,7 @@ export interface ApiErrorResponse {
 export * from "./api";
 export * from "./auth";
 export * from "./customer";
+export * from "./dashboard";
 export * from "./notification";
 export * from "./pos";
 export * from "./product";
