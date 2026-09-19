@@ -2,12 +2,16 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database.base import Base, UUIDPrimaryKeyMixin
+
+if TYPE_CHECKING:
+    from models.product import Product
 
 
 class SaleItem(UUIDPrimaryKeyMixin, Base):
@@ -39,10 +43,15 @@ class SaleItem(UUIDPrimaryKeyMixin, Base):
 
     sale: Mapped["Sale"] = relationship("Sale", back_populates="items")
 
-    product: Mapped["Product"] = relationship(
-    "Product",
-    back_populates="sale_items",
-)
+    # Confirmed present in the real merged file (Alishba added this fix
+    # before migration: "SaleItem: added the missing Product relationship").
+    product: Mapped["Product"] = relationship("Product", back_populates="sale_items")
+
+    @property
+    def product_name(self) -> str:
+        """Used by SaleItemRead so the invoice/sales views show a readable
+        product name instead of a raw product_id."""
+        return self.product.name if self.product else "Unknown product"
 
     def __repr__(self) -> str:
         return (

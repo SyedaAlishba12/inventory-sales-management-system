@@ -53,6 +53,12 @@ async def get_db_session() -> AsyncIterator[AsyncSession]:
             raise
 
 
+# Alias — some routes (Zainab's product_routes.py, confirmed) import
+# `get_db` instead of `get_db_session`. Taha mentioned adding this in his
+# progress report; not present in this branch yet, so adding it here.
+get_db = get_db_session
+
+
 @asynccontextmanager
 async def session_scope(
     session_factory: async_sessionmaker[AsyncSession] = SessionFactory,

@@ -30,6 +30,7 @@ class SaleItemCreate(BaseModel):
 class SaleItemRead(BaseModel):
     id: uuid.UUID
     product_id: uuid.UUID
+    product_name: str
     quantity: int
     unit_price: Decimal
     item_discount: Decimal
@@ -59,6 +60,7 @@ class SaleRead(BaseModel):
     invoice_number: str
     user_id: uuid.UUID
     customer_id: uuid.UUID | None
+    customer_name: str | None
     sale_date: datetime
     subtotal: Decimal
     discount: Decimal

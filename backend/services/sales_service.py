@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 from math import ceil
 
 from sqlalchemy import Select, func, select
@@ -10,20 +10,52 @@ from sqlalchemy.orm import selectinload
 
 from models.sale import Sale, SaleStatus
 from models.sale_item import SaleItem
-from schemas.sale import SaleCreate, SaleItemCreate
+from schemas.sale import SaleCreate
 from services.activity_log_service import activity_log_service
+from services.inventory_service import InventoryService
+from services.pos_service import calculate_totals
 
-# TODO: swap in Zainab's real inventory service once her products/inventory
-# PR is merged (expects something like inventory_service.record_stock_out(...)).
-# Kept as a no-op stub for now so this module doesn't break on import.
+
 async def _decrease_stock(
-    session: AsyncSession, *, product_id: uuid.UUID, quantity: int
+    session: AsyncSession, *, product_id: uuid.UUID, quantity: int, user_id: uuid.UUID
 ) -> None:
-    return None
+    """Wired to Zainab's real InventoryService.process_stock_out.
+
+    NOTE for the team: process_stock_out() commits the session itself
+    internally. Inside our checkout loop, that means if item 2 of a
+    multi-item cart fails (e.g. insufficient stock), item 1's stock
+    decrease + our partially-built Sale row are already permanently
+    committed — not rolled back. Flagging this to Zainab/Taha since
+    Purchase's process_stock_in() likely has the same behavior. Not
+    something to silently patch here since it's not our file.
+    """
+    await InventoryService.process_stock_out(
+        session,
+        product_id=product_id,
+        quantity=quantity,
+        user_id=user_id,
+        reason="Sale Completed",
+    )
 
 
-def _round2(value: Decimal) -> Decimal:
-    return value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+# TODO: swap in a real notification_service.create(...) if Zainab adds one
+# later — her NotificationService currently only has read/mark-as-read
+# methods, no create(). Matching her own pattern from inventory_service.py,
+# which builds a Notification(...) row directly rather than going through
+# a service method.
+async def _notify_new_sale(session: AsyncSession, *, sale: Sale) -> None:
+    from models.notification import Notification
+
+    session.add(
+        Notification(
+            user_id=None,  # broadcast — visible to all, not tied to one staff member
+            product_id=None,  # a sale can span multiple products, doesn't fit one FK
+            title="New Sale",
+            message=f"New sale completed: Invoice {sale.invoice_number} (total {sale.total}).",
+            type="NEW_SALE",
+            is_read=False,
+        )
+    )
 
 
 class SalesService:
@@ -31,27 +63,6 @@ class SalesService:
         count_stmt = select(func.count()).select_from(Sale)
         total = int((await session.execute(count_stmt)).scalar_one())
         return f"INV-{total + 1:05d}"
-
-    def _calculate_totals(
-        self,
-        items: list[SaleItemCreate],
-        *,
-        discount: Decimal,
-        is_percent_discount: bool,
-        tax_rate: Decimal,
-    ) -> tuple[Decimal, Decimal, Decimal, Decimal, list[Decimal]]:
-        line_subtotals = [
-            _round2(item.unit_price * item.quantity - item.item_discount) for item in items
-        ]
-        subtotal = _round2(sum(line_subtotals, Decimal("0")))
-        discount_amount = (
-            _round2(subtotal * discount / 100) if is_percent_discount else _round2(discount)
-        )
-        discount_amount = min(discount_amount, subtotal)
-        after_discount = subtotal - discount_amount
-        tax_amount = _round2(after_discount * tax_rate / 100)
-        total = after_discount + tax_amount
-        return subtotal, discount_amount, tax_amount, total, line_subtotals
 
     async def complete_sale(
         self,
@@ -62,7 +73,7 @@ class SalesService:
     ) -> Sale:
         """POS checkout -> Sale + SaleItems -> stock decrease -> activity log."""
 
-        subtotal, discount_amount, tax_amount, total, line_subtotals = self._calculate_totals(
+        subtotal, discount_amount, tax_amount, total, line_subtotals = calculate_totals(
             payload.items,
             discount=payload.discount,
             is_percent_discount=payload.is_percent_discount,
@@ -94,7 +105,9 @@ class SalesService:
                     line_subtotal=line_subtotal,
                 )
             )
-            await _decrease_stock(session, product_id=item.product_id, quantity=item.quantity)
+            await _decrease_stock(
+                session, product_id=item.product_id, quantity=item.quantity, user_id=user_id
+            )
 
         await activity_log_service.log(
             session,
@@ -105,12 +118,34 @@ class SalesService:
             description=f"Staff created Sale #{sale.invoice_number}",
         )
 
+        # "New sale" notification — per the task doc, the module that
+        # experiences the event (us) triggers it, not Zainab's module.
+        await _notify_new_sale(session, sale=sale)
+
         await session.flush()
-        await session.refresh(sale, attribute_names=["items"])
-        return sale
+        # Re-select with eager-loaded relationships (customer, items->product)
+        # so SaleRead.model_validate(sale) can read .customer_name and
+        # .items[].product_name without triggering a lazy load, which
+        # raises under async SQLAlchemy.
+        result = await session.execute(
+            select(Sale)
+            .where(Sale.id == sale.id)
+            .options(
+                selectinload(Sale.customer),
+                selectinload(Sale.items).selectinload(SaleItem.product),
+            )
+        )
+        return result.scalar_one()
 
     async def get_by_id(self, session: AsyncSession, sale_id: uuid.UUID) -> Sale | None:
-        stmt = select(Sale).where(Sale.id == sale_id).options(selectinload(Sale.items))
+        stmt = (
+            select(Sale)
+            .where(Sale.id == sale_id)
+            .options(
+                selectinload(Sale.customer),
+                selectinload(Sale.items).selectinload(SaleItem.product),
+            )
+        )
         return (await session.execute(stmt)).scalar_one_or_none()
 
     async def list(
@@ -134,13 +169,34 @@ class SalesService:
         stmt: Select = (
             select(Sale)
             .where(*filters)
-            .options(selectinload(Sale.items))
+            .options(
+                selectinload(Sale.customer),
+                selectinload(Sale.items).selectinload(SaleItem.product),
+            )
             .order_by(Sale.sale_date.desc(), Sale.id.desc())
             .offset((page - 1) * page_size)
             .limit(page_size)
         )
         items = list((await session.execute(stmt)).scalars().all())
         return items, total, ceil(total / page_size) if total else 0
+
+
+    async def checkout(
+        self,
+        session: AsyncSession,
+        *,
+        user_id,
+        payload: SaleCreate,
+    ) -> Sale:
+        """Wraps complete_sale with commit/rollback so both /api/pos/checkout
+        and POST /api/sales (two separate route files) share one code path."""
+        try:
+            sale = await self.complete_sale(session, user_id=user_id, payload=payload)
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        return sale
 
 
 sales_service = SalesService()

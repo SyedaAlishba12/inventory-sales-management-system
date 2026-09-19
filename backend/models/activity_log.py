@@ -39,10 +39,12 @@ class ActivityLog(UUIDPrimaryKeyMixin, Base):
         nullable=False,
         server_default=func.now(),
     )
-    user: Mapped["User | None"] = relationship(
-        "User",
-        back_populates="activity_logs",
-    )
+
+    # User.activity_logs declares back_populates="user" — this side was
+    # missing (likely reverted along with the other files affected by the
+    # same zip-overwrite mistake). Not our file (Sayeel's), flagging to him,
+    # but adding here so the app can actually boot in the meantime.
+    user: Mapped["User | None"] = relationship("User", back_populates="activity_logs")
 
     @property
     def user_name(self) -> str | None:

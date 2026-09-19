@@ -7,10 +7,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from common.config import get_settings
 from database.session import dispose_database
 from routes.activity_log_routes import router as activity_log_router
+from routes.pos_routes import router as pos_router
 from routes.sales_routes import router as sales_router
 from routes.dashboard_routes import router as dashboard_router
 from routes.report_routes import router as report_router
 from routes.export_routes import router as export_router
+from routes.product_routes import router as product_router
+from routes.category_routes import router as category_router
+from routes.inventory_routes import router as inventory_router
+from routes.notification_routes import router as notification_router
+
+from routes.auth_routes import router as auth_router
+from routes.customer_routes import router as customer_router
+from routes.purchase_routes import router as purchase_router
+from routes.supplier_routes import router as supplier_router
+from routes.user_routes import router as user_router
 
 settings = get_settings()
 APP_NAME = settings.app_name
@@ -37,12 +48,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 app.include_router(activity_log_router)
 app.include_router(sales_router)
 app.include_router(dashboard_router)
 app.include_router(report_router)
 app.include_router(export_router)
+
+app.include_router(pos_router)
+app.include_router(product_router)
+app.include_router(category_router)
+app.include_router(inventory_router)
+app.include_router(notification_router)
+
+app.include_router(auth_router)
+app.include_router(customer_router)
+app.include_router(purchase_router)
+app.include_router(supplier_router)
+app.include_router(user_router)
 
 @app.get("/")
 def root():

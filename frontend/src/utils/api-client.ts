@@ -1,5 +1,7 @@
 import { API_TIMEOUT_MS } from "@/constants";
+
 import { ApiError } from "@/utils/api-error-handler";
+
 import type {
   ApiErrorPayload,
   ApiRequestOptions,
@@ -393,3 +395,4 @@ export class ApiClient {
 }
 
 export const apiClient = new ApiClient();
+
