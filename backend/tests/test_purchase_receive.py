@@ -23,6 +23,7 @@ from models.supplier import Supplier
 from models.product import Product
 from models.category import Category
 from models.inventory import Inventory
+from models.inventory_movement import InventoryMovement
 from models.purchase import PaymentStatus, Purchase, PurchaseStatus
 from models.activity_log import ActivityLog
 from routes.purchase_routes import router as purchase_router
@@ -186,7 +187,21 @@ async def test_purchase_receive_flow(
         assert inventory is not None
         assert inventory.current_stock == 35
 
-    # 4. Assert Activity Log was created for "purchase.received"
+    # 4a. Assert InventoryMovement row was created with STOCK_IN
+    async with session_factory() as session:
+        movements = (await session.execute(
+            select(InventoryMovement).where(
+                InventoryMovement.product_id == TEST_PRODUCT_ID
+            )
+        )).scalars().all()
+        assert len(movements) >= 1, "Expected at least one InventoryMovement row"
+        stock_in = [m for m in movements if m.movement_type == "STOCK_IN"]
+        assert len(stock_in) == 1, "Expected exactly one STOCK_IN movement"
+        assert stock_in[0].quantity == 15
+        assert stock_in[0].previous_stock == 20
+        assert stock_in[0].new_stock == 35
+
+    # 4b. Assert Activity Log was created for "purchase.received"
     async with session_factory() as session:
         logs = (await session.execute(
             select(ActivityLog).where(ActivityLog.entity_id == uuid.UUID(purchase_id))
