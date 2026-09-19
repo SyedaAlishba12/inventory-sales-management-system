@@ -8,6 +8,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { apiClient } from "@/utils/api-client";
 
 export interface AdjustmentProduct {
   id: string;
@@ -34,20 +35,12 @@ export function StockAdjustmentModal({
   onClose,
   onSuccess,
 }: StockAdjustmentModalProps) {
-  const [productId, setProductId] =
-    useState("");
-
+  const [productId, setProductId] = useState("");
   const [movementType, setMovementType] =
     useState<MovementType>("STOCK_IN");
-
-  const [quantity, setQuantity] =
-    useState("");
-
-  const [reason, setReason] =
-    useState("");
-
-  const [saving, setSaving] =
-    useState(false);
+  const [quantity, setQuantity] = useState("");
+  const [reason, setReason] = useState("");
+  const [saving, setSaving] = useState(false);
 
   if (!isOpen) {
     return null;
@@ -58,8 +51,7 @@ export function StockAdjustmentModal({
   ) => {
     event.preventDefault();
 
-    const numericQuantity =
-      Number(quantity);
+    const numericQuantity = Number(quantity);
 
     if (!productId) {
       alert("Please select a product.");
@@ -83,36 +75,17 @@ export function StockAdjustmentModal({
     try {
       setSaving(true);
 
-      const response = await fetch(
+      // Use apiClient so the stored Bearer access token
+      // is automatically attached to the request.
+      await apiClient.post(
         "/api/inventory/adjust",
         {
-          method: "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify({
-            product_id: productId,
-            quantity: numericQuantity,
-            movement_type: movementType,
-            reason: reason.trim() || null,
-          }),
+          product_id: productId,
+          quantity: numericQuantity,
+          movement_type: movementType,
+          reason: reason.trim() || null,
         }
       );
-
-      if (!response.ok) {
-        const errorData =
-          await response
-            .json()
-            .catch(() => null);
-
-        throw new Error(
-          errorData?.detail ||
-            "Failed to adjust inventory."
-        );
-      }
 
       setProductId("");
       setMovementType("STOCK_IN");
@@ -181,9 +154,7 @@ export function StockAdjustmentModal({
             <select
               value={productId}
               onChange={(event) =>
-                setProductId(
-                  event.target.value
-                )
+                setProductId(event.target.value)
               }
               className="w-full rounded-md border border-[#D7E0E3] bg-white px-3 py-2 text-sm text-[#0F4C5C] focus:outline-none"
               required
@@ -214,8 +185,7 @@ export function StockAdjustmentModal({
               value={movementType}
               onChange={(event) =>
                 setMovementType(
-                  event.target
-                    .value as MovementType
+                  event.target.value as MovementType
                 )
               }
               className="w-full rounded-md border border-[#D7E0E3] bg-white px-3 py-2 text-sm text-[#0F4C5C] focus:outline-none"
@@ -252,9 +222,7 @@ export function StockAdjustmentModal({
               min="0"
               value={quantity}
               onChange={(event) =>
-                setQuantity(
-                  event.target.value
-                )
+                setQuantity(event.target.value)
               }
               placeholder={
                 movementType === "ADJUSTMENT"
@@ -264,8 +232,7 @@ export function StockAdjustmentModal({
               required
             />
 
-            {movementType ===
-              "ADJUSTMENT" && (
+            {movementType === "ADJUSTMENT" && (
               <p className="text-xs text-[#7A8B91]">
                 Adjustment sets the stock to the exact value entered.
               </p>
@@ -282,9 +249,7 @@ export function StockAdjustmentModal({
             <textarea
               value={reason}
               onChange={(event) =>
-                setReason(
-                  event.target.value
-                )
+                setReason(event.target.value)
               }
               maxLength={500}
               rows={3}

@@ -44,33 +44,44 @@ export function NotificationStats({
   ];
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+
       {stats.map((stat) => {
         const Icon = stat.icon;
 
         return (
           <div
             key={stat.label}
-            className="rounded-xl border border-[#D7E0E3] bg-white p-5 shadow-sm"
+            className="rounded-lg border border-[#D7E0E3] bg-white px-4 py-3 shadow-sm"
           >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-[#7A8B91]">
+
+            <div className="flex items-center justify-between gap-3">
+
+              <div className="min-w-0">
+
+                <p className="truncate text-xs font-medium text-[#7A8B91]">
                   {stat.label}
                 </p>
 
-                <p className="mt-2 text-2xl font-bold text-[#0F4C5C]">
+                <p className="mt-1 text-xl font-bold text-[#0F4C5C]">
                   {stat.value}
                 </p>
+
               </div>
 
-              <div className="rounded-lg bg-[#EAF3F5] p-3">
-                <Icon className="h-5 w-5 text-[#0F4C5C]" />
+
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#EAF3F5]">
+
+                <Icon className="h-4 w-4 text-[#0F4C5C]" />
+
               </div>
+
             </div>
+
           </div>
         );
       })}
+
     </div>
   );
 }

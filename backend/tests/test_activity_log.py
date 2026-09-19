@@ -41,7 +41,16 @@ async def session_factory() -> AsyncIterator[async_sessionmaker[AsyncSession]]:
 
     async with database_engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
-        await connection.execute(insert(users_table).values(id=TEST_USER_ID))
+        await connection.execute(
+    insert(users_table).values(
+        id=TEST_USER_ID,
+        full_name="Test User",
+        email="activity-log-test@example.com",
+        password_hash="test-password-hash",
+        role="STAFF",
+        is_active=True,
+    )
+)
 
     factory = create_session_factory(database_engine)
     try:

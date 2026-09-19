@@ -1,4 +1,3 @@
-import enum
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, Text, ForeignKey, DateTime,Enum
@@ -7,12 +6,6 @@ from sqlalchemy.orm import relationship
 
 from database.base import Base
 import enum
-
-class MovementType(str, enum.Enum):
-    STOCK_IN = "STOCK_IN"
-    STOCK_OUT = "STOCK_OUT"
-    DAMAGED = "DAMAGED"
-    ADJUSTMENT = "ADJUSTMENT"
 
 
 class MovementType(str, enum.Enum):
