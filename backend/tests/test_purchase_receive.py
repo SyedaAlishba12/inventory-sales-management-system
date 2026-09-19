@@ -6,14 +6,16 @@ Tests for purchase receive and stock-in wiring.
 
 import uuid
 from collections.abc import AsyncIterator
+from uuid import uuid4
 
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import Column, Table, Uuid, insert, select
+from sqlalchemy import insert, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from common.config import Settings
+from common.security import hash_password, create_access_token
 from database.base import Base
 from database.session import create_database_engine, create_session_factory, get_db_session
 from models.user import UserRole, User
@@ -21,6 +23,7 @@ from models.supplier import Supplier
 from models.product import Product
 from models.category import Category
 from models.inventory import Inventory
+from models.inventory_movement import InventoryMovement
 from models.purchase import PaymentStatus, Purchase, PurchaseStatus
 from models.activity_log import ActivityLog
 from routes.purchase_routes import router as purchase_router
@@ -44,7 +47,6 @@ async def session_factory() -> AsyncIterator[async_sessionmaker[AsyncSession]]:
     
     async with database_engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
-        from common.security import hash_password
         
         await connection.execute(
             insert(User).values(
@@ -113,9 +115,30 @@ def app_client(session_factory: async_sessionmaker[AsyncSession]) -> AsyncClient
     return AsyncClient(transport=transport, base_url="http://test")
 
 
-async def get_token(client):
+async def get_staff_token(client) -> str:
+    """Login as the pre-seeded STAFF user."""
     resp = await client.post("/api/auth/login", json={"email": "staff@example.com", "password": "Password123!"})
     return resp.json()["access_token"]
+
+
+async def get_admin_token(session_factory) -> str:
+    """Create an ADMIN user directly in the DB and mint a token.
+
+    Cannot go through public signup — that endpoint hardcodes STAFF by design.
+    """
+    async with session_factory() as session:
+        admin = User(
+            id=uuid4(),
+            full_name="Test Admin",
+            email=f"admin-{uuid4()}@example.com",
+            password_hash=hash_password("Str0ng!Pass"),
+            role=UserRole.ADMIN,
+            is_active=True,
+        )
+        session.add(admin)
+        await session.commit()
+        await session.refresh(admin)
+    return create_access_token(str(admin.id), admin.role.value)
 
 
 @pytest.mark.asyncio
@@ -123,10 +146,19 @@ async def test_purchase_receive_flow(
     app_client: AsyncClient,
     session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
-    token = await get_token(app_client)
-    headers = {"Authorization": f"Bearer {token}"}
-    
-    # 1. Create a purchase with items
+    admin_token = await get_admin_token(session_factory)
+    admin_headers = {"Authorization": f"Bearer {admin_token}"}
+
+    # Confirm staff is correctly denied on purchase creation
+    staff_token = await get_staff_token(app_client)
+    staff_denied = await app_client.post("/api/purchases", json={
+        "supplier_id": str(TEST_SUPPLIER_ID),
+        "notes": "should be denied",
+        "items": [{"product_id": str(TEST_PRODUCT_ID), "quantity": 1, "cost_price": 5.0}]
+    }, headers={"Authorization": f"Bearer {staff_token}"})
+    assert staff_denied.status_code == 403, "Staff must be denied access to purchase creation (RBAC check)"
+
+    # 1. Create a purchase with items (admin)
     payload = {
         "supplier_id": str(TEST_SUPPLIER_ID),
         "notes": "Test receive purchase",
@@ -138,12 +170,12 @@ async def test_purchase_receive_flow(
             }
         ]
     }
-    create_response = await app_client.post("/api/purchases", json=payload, headers=headers)
+    create_response = await app_client.post("/api/purchases", json=payload, headers=admin_headers)
     assert create_response.status_code == 201
     purchase_id = create_response.json()["id"]
 
-    # 2. Receive the purchase (should succeed)
-    receive_response = await app_client.patch(f"/api/purchases/{purchase_id}/receive", headers=headers)
+    # 2. Receive the purchase (admin — should succeed)
+    receive_response = await app_client.patch(f"/api/purchases/{purchase_id}/receive", headers=admin_headers)
     assert receive_response.status_code == 200
     assert receive_response.json()["purchase_status"] == "RECEIVED"
 
@@ -155,7 +187,21 @@ async def test_purchase_receive_flow(
         assert inventory is not None
         assert inventory.current_stock == 35
 
-    # 4. Assert Activity Log was created for "purchase.received"
+    # 4a. Assert InventoryMovement row was created with STOCK_IN
+    async with session_factory() as session:
+        movements = (await session.execute(
+            select(InventoryMovement).where(
+                InventoryMovement.product_id == TEST_PRODUCT_ID
+            )
+        )).scalars().all()
+        assert len(movements) >= 1, "Expected at least one InventoryMovement row"
+        stock_in = [m for m in movements if m.movement_type == "STOCK_IN"]
+        assert len(stock_in) == 1, "Expected exactly one STOCK_IN movement"
+        assert stock_in[0].quantity == 15
+        assert stock_in[0].previous_stock == 20
+        assert stock_in[0].new_stock == 35
+
+    # 4b. Assert Activity Log was created for "purchase.received"
     async with session_factory() as session:
         logs = (await session.execute(
             select(ActivityLog).where(ActivityLog.entity_id == uuid.UUID(purchase_id))
@@ -163,6 +209,6 @@ async def test_purchase_receive_flow(
         assert any(log.action == "purchase.received" for log in logs)
 
     # 5. Receive the purchase again (should raise 409 Conflict)
-    receive_twice_response = await app_client.patch(f"/api/purchases/{purchase_id}/receive", headers=headers)
+    receive_twice_response = await app_client.patch(f"/api/purchases/{purchase_id}/receive", headers=admin_headers)
     assert receive_twice_response.status_code == 409
     assert "already been received" in receive_twice_response.json()["detail"]
