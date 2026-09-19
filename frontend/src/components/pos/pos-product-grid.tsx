@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Package, ShoppingCart } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,25 @@ interface PosProductGridProps {
   products: PosProduct[];
   loading: boolean;
   onSelect: (product: PosProduct) => void;
+}
+
+function ProductThumbnail({ imageUrl, name }: { imageUrl: string | null | undefined; name: string }) {
+  const [failed, setFailed] = useState(false);
+
+  if (!imageUrl || failed) {
+    return <Package className="size-8 text-muted-foreground" aria-hidden="true" />;
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={imageUrl}
+      alt={name}
+      loading="lazy"
+      className="size-full object-cover"
+      onError={() => setFailed(true)}
+    />
+  );
 }
 
 export function PosProductGrid({ products, loading, onSelect }: PosProductGridProps) {
@@ -43,17 +63,7 @@ export function PosProductGrid({ products, loading, onSelect }: PosProductGridPr
         return (
           <Card key={product.id} className="overflow-hidden">
             <div className="flex aspect-square items-center justify-center bg-muted">
-              {product.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={product.imageUrl}
-                  alt={product.name}
-                  loading="lazy"
-                  className="size-full object-cover"
-                />
-              ) : (
-                <Package className="size-8 text-muted-foreground" aria-hidden="true" />
-              )}
+              <ProductThumbnail imageUrl={product.imageUrl} name={product.name} />
             </div>
             <CardContent className="space-y-1.5 p-2.5">
               <p className="truncate text-xs font-medium" title={product.name}>

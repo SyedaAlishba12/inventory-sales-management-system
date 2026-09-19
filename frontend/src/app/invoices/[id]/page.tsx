@@ -33,9 +33,21 @@ export default function InvoicePage() {
       .get<Parameters<typeof mapSale>[0]>(`/api/sales/${params.id}/invoice`, {
         signal: controller.signal,
       })
-      .then((raw) => setSale(mapSale(raw)))
-      .catch(() => setError("This invoice could not be found."))
-      .finally(() => setLoading(false));
+      .then((raw) => {
+        setSale(mapSale(raw));
+        setLoading(false);
+      })
+      .catch((err) => {
+        // apiClient converts every AbortError into a plain Error before it
+        // reaches here (loses err.name === "AbortError"), so checking the
+        // error type doesn't work. Checking our OWN controller's signal is
+        // reliable regardless of what apiClient does internally: if WE
+        // aborted this specific fetch (via the cleanup below), skip it —
+        // a later, successful re-run already set the real state.
+        if (controller.signal.aborted) return;
+        setError("This invoice could not be found.");
+        setLoading(false);
+      });
 
     return () => controller.abort();
   }, [params.id]);

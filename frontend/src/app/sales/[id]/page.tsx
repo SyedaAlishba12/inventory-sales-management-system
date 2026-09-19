@@ -33,9 +33,18 @@ export default function SaleDetailPage() {
       .get<Parameters<typeof mapSale>[0]>(`/api/sales/${params.id}`, {
         signal: controller.signal,
       })
-      .then((raw) => setSale(mapSale(raw)))
-      .catch(() => setError("This sale could not be found."))
-      .finally(() => setLoading(false));
+      .then((raw) => {
+        setSale(mapSale(raw));
+        setLoading(false);
+      })
+      .catch((err) => {
+        // See invoices/[id]/page.tsx — check our own controller's signal,
+        // not the error's name, since apiClient wraps AbortErrors into a
+        // plain Error before it reaches this catch.
+        if (controller.signal.aborted) return;
+        setError("This sale could not be found.");
+        setLoading(false);
+      });
 
     return () => controller.abort();
   }, [params.id]);
