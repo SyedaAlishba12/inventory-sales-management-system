@@ -108,7 +108,7 @@ function SupplierDetailContent({ id }: { id: string }) {
     {
       id: "total",
       header: "Total",
-      accessor: (row) => formatCurrency(Number(row.total_amount)),
+      accessor: (row) => formatCurrency(Number(row.total_cost)),
       align: "right",
     },
   ];

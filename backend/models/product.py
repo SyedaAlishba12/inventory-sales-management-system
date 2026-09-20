@@ -65,7 +65,8 @@ class Product(Base):
     inventory_movements = relationship(
         "InventoryMovement",
         back_populates="product",
-    )
+        passive_deletes=True,
+        )
 
     # Relationships: One-to-many with Notifications
     notifications = relationship(

@@ -1,6 +1,11 @@
 "use client";
 
-import { Bell, Menu, Search } from "lucide-react";
+import {
+  Bell,
+  Menu,
+  Search,
+  ShoppingCart,
+} from "lucide-react";
 import Link from "next/link";
 
 import { UserMenu } from "@/components/layout/user-menu";
@@ -28,7 +33,7 @@ function formatRole(role: string) {
 }
 
 export function Topbar({ onMenuClick }: TopbarProps) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-[#D7E0E3] bg-white px-4 text-[#0F4C5C] backdrop-blur sm:px-6">
@@ -59,7 +64,24 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           size="icon"
           className="relative text-[#52646A] hover:bg-[#EAF0F2] hover:text-[#0F4C5C]"
         >
-          <Link href="/notifications" aria-label="Notifications">
+          <Link
+            href="/pos?checkout=true"
+            aria-label="Cart"
+          >
+            <ShoppingCart className="size-5" />
+          </Link>
+        </Button>
+
+        <Button
+          asChild
+          variant="ghost"
+          size="icon"
+          className="relative text-[#52646A] hover:bg-[#EAF0F2] hover:text-[#0F4C5C]"
+        >
+          <Link
+            href="/notifications"
+            aria-label="Notifications"
+          >
             <Bell className="size-5" />
             <span className="absolute top-2 right-2 size-2 rounded-full bg-[#E67E72] ring-2 ring-white" />
           </Link>
@@ -69,6 +91,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           name={user?.full_name}
           email={user?.email}
           role={user?.role ? formatRole(user.role) : undefined}
+          onLogout={logout}
         />
       </div>
     </header>

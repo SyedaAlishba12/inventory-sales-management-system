@@ -1,44 +1,104 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from typing import List
 
-from database.session import get_db
-from models.inventory import Inventory
-from models.inventory_movement import InventoryMovement
-from models.product import Product
+from controllers.inventory_controller import InventoryController
+from database.session import get_db_session
+from middleware.auth_middleware import require_admin, require_staff
+from models.user import User
+from schemas.inventory_schema import (
+    InventoryAdjustmentCreate,
+    InventoryMovementResponse,
+    InventoryResponse,
+)
 
-router = APIRouter(prefix="/api/inventory", tags=["Inventory"])
 
-@router.get("/")
-async def get_inventory(db: AsyncSession = Depends(get_db)):
-    """API endpoint to get current stock levels for all products."""
-    result = await db.execute(select(Inventory))
-    return result.scalars().all()
+router = APIRouter(
+    prefix="/api/inventory",
+    tags=["Inventory"],
+)
 
-@router.get("/movements")
-async def get_inventory_movements(db: AsyncSession = Depends(get_db)):
-    """API endpoint to view the audit trail of all inventory movements."""
-    result = await db.execute(select(InventoryMovement).order_by(InventoryMovement.created_at.desc()))
-    return result.scalars().all()
 
-@router.get("/low-stock")
-async def get_low_stock_products(db: AsyncSession = Depends(get_db)):
-    """API endpoint to detect products where current stock is at or below minimum level."""
-    # Joining Inventory and Product to filter current_stock <= min_stock_level
-    query = (
-        select(Inventory, Product)
-        .join(Product, Inventory.product_id == Product.id)
-        .where(Inventory.current_stock <= Product.min_stock_level)
-    )
-    result = await db.execute(query)
-    low_stock_items = []
-    for inv, prod in result.all():
-        low_stock_items.append({
-            "product_id": prod.id,
-            "product_name": prod.name,
-            "sku": prod.sku,
-            "current_stock": inv.current_stock,
-            "min_stock_level": prod.min_stock_level
-        })
-    return low_stock_items
+# =========================================================
+# GET ALL INVENTORY
+# ADMIN + STAFF
+# =========================================================
+
+@router.get(
+    "/",
+    response_model=list[InventoryResponse],
+)
+async def get_inventory(
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(require_staff),
+):
+    return await InventoryController.get_all_inventory_records(db)
+
+
+# =========================================================
+# GET INVENTORY MOVEMENTS
+# ADMIN + STAFF
+# =========================================================
+
+@router.get(
+    "/movements",
+    response_model=list[InventoryMovementResponse],
+)
+async def get_inventory_movements(
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(require_staff),
+):
+    return await InventoryController.get_all_movements(db)
+
+
+# =========================================================
+# GET LOW STOCK ITEMS
+# ADMIN + STAFF
+# =========================================================
+
+@router.get(
+    "/low-stock",
+    response_model=list[InventoryResponse],
+)
+async def get_low_stock_inventory(
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(require_staff),
+):
+    return await InventoryController.get_low_stock_items(db)
+
+
+# =========================================================
+# MANUAL INVENTORY ADJUSTMENT
+# ADMIN ONLY
+# =========================================================
+
+@router.post(
+    "/adjust",
+    response_model=InventoryResponse,
+)
+async def adjust_inventory_stock(
+    adjustment: InventoryAdjustmentCreate,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(require_admin),
+):
+    try:
+        inventory = await InventoryController.adjust_product_stock(
+            db=db,
+            adjustment=adjustment,
+            user_id=current_user.id,
+        )
+
+        await db.commit()
+        await db.refresh(inventory)
+
+        return inventory
+
+    except HTTPException:
+        await db.rollback()
+        raise
+
+    except Exception:
+        await db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to adjust inventory stock.",
+        )

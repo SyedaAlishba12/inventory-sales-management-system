@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from common.config import get_settings
 from database.session import dispose_database
@@ -48,13 +49,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.mount(
+    "/uploads",
+    StaticFiles(directory="uploads"),
+    name="uploads",
+)
+
 app.include_router(activity_log_router)
 app.include_router(sales_router)
 app.include_router(dashboard_router)
 app.include_router(report_router)
 app.include_router(export_router)
-
 app.include_router(pos_router)
+
+# Product, category, inventory, and notification routes
 app.include_router(product_router)
 app.include_router(category_router)
 app.include_router(inventory_router)
@@ -65,6 +74,7 @@ app.include_router(customer_router)
 app.include_router(purchase_router)
 app.include_router(supplier_router)
 app.include_router(user_router)
+
 
 @app.get("/")
 def root():

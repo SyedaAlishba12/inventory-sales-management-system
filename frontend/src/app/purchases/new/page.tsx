@@ -27,7 +27,7 @@ function NewPurchaseContent() {
   const [supplierId, setSupplierId] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<PurchaseItemCreate[]>([
-    { product_id: "", quantity: 1, unit_price: 0 },
+    { product_id: "", quantity: 1, cost_price: 0 },
   ]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,7 +53,7 @@ function NewPurchaseContent() {
   }, []);
 
   const handleAddItem = () => {
-    setItems([...items, { product_id: "", quantity: 1, unit_price: 0 }]);
+    setItems([...items, { product_id: "", quantity: 1, cost_price: 0 }]);
   };
 
   const handleRemoveItem = (index: number) => {
@@ -76,7 +76,7 @@ function NewPurchaseContent() {
 
   const calculateTotal = () => {
     return items.reduce(
-      (total, item) => total + item.quantity * item.unit_price,
+      (total, item) => total + item.quantity * item.cost_price,
       0,
     );
   };
@@ -94,7 +94,7 @@ function NewPurchaseContent() {
         (item) =>
           !item.product_id ||
           item.quantity <= 0 ||
-          item.unit_price < 0,
+          item.cost_price < 0,
       )
     ) {
       toastUtils.error(new Error("Please fill all item fields correctly"));
@@ -261,11 +261,11 @@ function NewPurchaseContent() {
                     type="number"
                     min="0"
                     step="0.01"
-                    value={item.unit_price}
+                    value={item.cost_price}
                     onChange={(e) =>
                       handleItemChange(
                         index,
-                        "unit_price",
+                        "cost_price",
                         parseFloat(e.target.value) || 0,
                       )
                     }
@@ -279,7 +279,7 @@ function NewPurchaseContent() {
                   </div>
 
                   <div className="font-semibold">
-                    {formatCurrency(item.quantity * item.unit_price)}
+                    {formatCurrency(item.quantity * item.cost_price)}
                   </div>
                 </div>
 
@@ -309,7 +309,12 @@ function NewPurchaseContent() {
         </div>
 
         <div className="flex justify-end gap-4">
-          <Button type="button" variant="outline" asChild disabled={isSubmitting}>
+          <Button
+            type="button"
+            variant="outline"
+            asChild
+            disabled={isSubmitting}
+          >
             <Link href="/purchases">Cancel</Link>
           </Button>
 

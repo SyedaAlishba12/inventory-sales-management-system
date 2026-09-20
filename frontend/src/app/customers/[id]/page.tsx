@@ -129,7 +129,7 @@ function CustomerDetailContent({ id }: { id: string }) {
       id: "total",
       header: "Total",
       accessor: (row) =>
-        formatCurrency(Number(row.total_amount)),
+        formatCurrency(Number(row.total_cost)),
       align: "right",
     },
   ];

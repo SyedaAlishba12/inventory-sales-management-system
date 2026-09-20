@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Plus } from "lucide-react";
+import { ArrowLeft, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { SupplierForm } from "@/components/suppliers/supplier-form";
 import { AuthGuard } from "@/components/auth/auth-guard";
-import { DataTable, type DataTableColumn } from "@/components/shared/data-table";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "@/components/shared/data-table";
 import { SearchBar } from "@/components/shared/search-bar";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,7 +20,10 @@ import {
 } from "@/components/ui/dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apiClient } from "@/utils/api-client";
-import type { SupplierCreate, SupplierResponse } from "@/types/supplier";
+import type {
+  SupplierCreate,
+  SupplierResponse,
+} from "@/types/supplier";
 import { toastUtils } from "@/utils/toast";
 
 function SuppliersContent() {
@@ -34,9 +40,14 @@ function SuppliersContent() {
   const fetchSuppliers = useCallback(async (searchQuery: string) => {
     setIsLoading(true);
     try {
-      const data = await apiClient.get<SupplierResponse[]>("/api/suppliers", {
-        query: searchQuery ? { search: searchQuery } : undefined,
-      });
+      const data = await apiClient.get<SupplierResponse[]>(
+        "/api/suppliers",
+        {
+          query: searchQuery
+            ? { search: searchQuery }
+            : undefined,
+        },
+      );
       setSuppliers(data);
     } catch (err) {
       toastUtils.error(err, "Error fetching suppliers");
@@ -92,13 +103,25 @@ function SuppliersContent() {
   return (
     <div className="space-y-6 p-6 pb-16 lg:p-10 lg:pb-20">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#0F4C5C]">
-            Suppliers
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Manage your supplier database.
-          </p>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => router.push("/dashboard")}
+            aria-label="Back to Dashboard"
+          >
+            <ArrowLeft className="size-4" />
+          </Button>
+
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-[#0F4C5C]">
+              Suppliers
+            </h1>
+
+            <p className="text-sm text-muted-foreground">
+              Manage your supplier database.
+            </p>
+          </div>
         </div>
 
         <Button onClick={() => setIsAddOpen(true)}>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Plus } from "lucide-react";
+import { ArrowLeft, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { CustomerForm } from "@/components/customers/customer-form";
@@ -80,7 +80,7 @@ function CustomersContent() {
 
       fetchCustomers(debouncedSearch);
     } catch (err) {
-      throw err; // Form component will catch and show it
+      throw err;
     } finally {
       setIsSubmitting(false);
     }
@@ -116,15 +116,26 @@ function CustomersContent() {
   return (
     <div className="space-y-6 p-6 pb-16 lg:p-10 lg:pb-20">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#0F4C5C]">
-            Customers
-          </h1>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => router.push("/dashboard")}
+            aria-label="Back to Dashboard"
+          >
+            <ArrowLeft className="size-4" />
+          </Button>
 
-          <p className="text-sm text-muted-foreground">
-            Manage your customer database and view their purchase
-            history.
-          </p>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-[#0F4C5C]">
+              Customers
+            </h1>
+
+            <p className="text-sm text-muted-foreground">
+              Manage your customer database and view their purchase
+              history.
+            </p>
+          </div>
         </div>
 
         <Button onClick={() => setIsAddOpen(true)}>
@@ -182,3 +193,4 @@ export default function CustomersPage() {
     </AuthGuard>
   );
 }
+

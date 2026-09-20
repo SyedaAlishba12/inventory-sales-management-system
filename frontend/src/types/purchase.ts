@@ -1,14 +1,14 @@
 export interface PurchaseItemCreate {
   product_id: string;
   quantity: number;
-  unit_price: number;
+  cost_price: number;
 }
 
 export interface PurchaseItemResponse {
   id: string;
   product_id: string;
   quantity: number;
-  unit_price: number | string;
+  cost_price: number | string;
   total_price: number | string;
 }
 
@@ -28,7 +28,7 @@ export interface PurchaseResponse {
   supplier_id: string;
   payment_status: string;
   purchase_status: string;
-  total_amount: number | string;
+  total_cost: number | string;
   notes: string | null;
   items: PurchaseItemResponse[];
 }

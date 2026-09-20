@@ -28,25 +28,25 @@ import type { ActivityLog, ActivityLogListResponse } from "@/types";
 const PAGE_SIZE = 20;
 
 const actionOptions = [
-  "CREATE",
-  "UPDATE",
-  "DELETE",
-  "SALE",
-  "STOCK_IN",
-  "STOCK_OUT",
-  "DAMAGED",
-  "ADJUSTMENT",
+  { label: "CREATE", value: "CREATE" },
+  { label: "UPDATE", value: "UPDATE" },
+  { label: "DELETE", value: "DELETE" },
+  { label: "SALE", value: "SALE_CREATED" },
+  { label: "STOCK IN", value: "STOCK_IN" },
+  { label: "STOCK OUT", value: "STOCK_OUT" },
+  { label: "DAMAGED", value: "DAMAGED" },
+  { label: "ADJUSTMENT", value: "ADJUSTMENT" },
 ];
 
 const entityOptions = [
-  "Product",
-  "Inventory",
-  "Sale",
-  "Purchase",
-  "Customer",
-  "Supplier",
-  "User",
-  "Invoice",
+  { label: "Product", value: "product" },
+  { label: "Inventory", value: "inventory" },
+  { label: "Sale", value: "Sale" },
+  { label: "Purchase", value: "purchase" },
+  { label: "Customer", value: "customer" },
+  { label: "Supplier", value: "supplier" },
+  { label: "User", value: "user" },
+  { label: "Invoice", value: "invoice" },
 ];
 
 function formatDateTime(value: string) {
@@ -61,6 +61,10 @@ function formatAction(action: string) {
     .toLowerCase()
     .replace(/_/g, " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatEntity(entity: string) {
+  return entity.charAt(0).toUpperCase() + entity.slice(1);
 }
 
 function actionBadgeClass(action: string) {
@@ -105,6 +109,7 @@ function ActivityRow({ activity }: { activity: ActivityLog }) {
             <p className="truncate text-sm font-semibold text-[#1E293B]">
               {activity.user_name || "System"}
             </p>
+
             {activity.user_id ? (
               <p className="truncate text-xs text-[#64748B]">
                 {activity.user_id}
@@ -124,8 +129,9 @@ function ActivityRow({ activity }: { activity: ActivityLog }) {
         {activity.entity_type ? (
           <div>
             <p className="text-sm font-medium text-[#1E293B]">
-              {activity.entity_type}
+              {formatEntity(activity.entity_type)}
             </p>
+
             {activity.entity_id ? (
               <p className="mt-0.5 max-w-[180px] truncate text-xs text-[#64748B]">
                 {activity.entity_id}
@@ -206,7 +212,11 @@ export default function ActivityLogsPage() {
   }, [action, entityType, startDate, endDate, page]);
 
   useEffect(() => {
-    void loadActivities();
+    const timeoutId = window.setTimeout(() => {
+      void loadActivities();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
   }, [loadActivities]);
 
   function handleFilterChange(
@@ -265,6 +275,7 @@ export default function ActivityLogsPage() {
                   <Filter className="size-5" aria-hidden="true" />
                   Filters
                 </CardTitle>
+
                 <p className="mt-1 text-sm text-[#64748B]">
                   Narrow the activity history by action, entity, or date.
                 </p>
@@ -291,6 +302,7 @@ export default function ActivityLogsPage() {
                 >
                   Action
                 </label>
+
                 <select
                   id="activity-action"
                   value={action}
@@ -300,9 +312,10 @@ export default function ActivityLogsPage() {
                   className="h-10 w-full rounded-lg border border-[#D7E0E3] bg-white px-3 text-sm text-[#1E293B] outline-none transition focus:border-[#78A394] focus:ring-2 focus:ring-[#78A394]/20"
                 >
                   <option value="">All actions</option>
+
                   {actionOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {formatAction(option)}
+                    <option key={option.value} value={option.value}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
@@ -315,6 +328,7 @@ export default function ActivityLogsPage() {
                 >
                   Entity
                 </label>
+
                 <select
                   id="activity-entity"
                   value={entityType}
@@ -324,9 +338,10 @@ export default function ActivityLogsPage() {
                   className="h-10 w-full rounded-lg border border-[#D7E0E3] bg-white px-3 text-sm text-[#1E293B] outline-none transition focus:border-[#78A394] focus:ring-2 focus:ring-[#78A394]/20"
                 >
                   <option value="">All entities</option>
+
                   {entityOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
+                    <option key={option.value} value={option.value}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
@@ -339,11 +354,13 @@ export default function ActivityLogsPage() {
                 >
                   From
                 </label>
+
                 <div className="relative">
                   <CalendarDays
                     className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#64748B]"
                     aria-hidden="true"
                   />
+
                   <input
                     id="activity-start-date"
                     type="date"
@@ -363,11 +380,13 @@ export default function ActivityLogsPage() {
                 >
                   To
                 </label>
+
                 <div className="relative">
                   <CalendarDays
                     className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#64748B]"
                     aria-hidden="true"
                   />
+
                   <input
                     id="activity-end-date"
                     type="date"
@@ -392,10 +411,13 @@ export default function ActivityLogsPage() {
                   <Activity className="size-5" aria-hidden="true" />
                   Recent Activity
                 </CardTitle>
+
                 <p className="mt-1 text-sm text-[#64748B]">
                   {loading
                     ? "Loading activity..."
-                    : `${total} ${total === 1 ? "activity" : "activities"} found`}
+                    : `${total} ${
+                        total === 1 ? "activity" : "activities"
+                      } found`}
                 </p>
               </div>
             </div>
@@ -457,15 +479,19 @@ export default function ActivityLogsPage() {
                         <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[#64748B]">
                           User
                         </th>
+
                         <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[#64748B]">
                           Action
                         </th>
+
                         <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[#64748B]">
                           Entity
                         </th>
+
                         <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[#64748B]">
                           Description
                         </th>
+
                         <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-[#64748B]">
                           Date & Time
                         </th>
@@ -493,7 +519,9 @@ export default function ActivityLogsPage() {
                       variant="outline"
                       size="sm"
                       disabled={page <= 1 || loading}
-                      onClick={() => setPage((current) => current - 1)}
+                      onClick={() =>
+                        setPage((current) => current - 1)
+                      }
                       className="border-[#D7E0E3]"
                     >
                       <ChevronLeft
@@ -507,9 +535,13 @@ export default function ActivityLogsPage() {
                       variant="outline"
                       size="sm"
                       disabled={
-                        page >= totalPages || totalPages === 0 || loading
+                        page >= totalPages ||
+                        totalPages === 0 ||
+                        loading
                       }
-                      onClick={() => setPage((current) => current + 1)}
+                      onClick={() =>
+                        setPage((current) => current + 1)
+                      }
                       className="border-[#D7E0E3]"
                     >
                       Next

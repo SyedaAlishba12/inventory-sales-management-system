@@ -104,9 +104,9 @@ function PurchaseDetailContent({ id }: { id: string }) {
       accessor: "quantity",
     },
     {
-      id: "unit_price",
+      id: "cost_price",
       header: "Unit Cost",
-      accessor: (row) => formatCurrency(Number(row.unit_price)),
+      accessor: (row) => formatCurrency(Number(row.cost_price)),
       align: "right",
     },
     {
@@ -209,7 +209,7 @@ function PurchaseDetailContent({ id }: { id: string }) {
             <div className="text-muted-foreground">Order Total</div>
 
             <div className="text-lg font-bold">
-              {formatCurrency(Number(purchase.total_amount))}
+              {formatCurrency(Number(purchase.total_cost))}
             </div>
           </div>
         </div>

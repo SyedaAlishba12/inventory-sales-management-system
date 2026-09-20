@@ -2,7 +2,7 @@ from datetime import datetime
 from math import ceil
 from uuid import UUID
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -62,20 +62,71 @@ class ActivityLogService:
         end_date: datetime | None = None,
     ) -> tuple[list[ActivityLog], int, int]:
         filters = []
+
         if user_id is not None:
             filters.append(ActivityLog.user_id == user_id)
+
         if action:
-            filters.append(ActivityLog.action == action.strip())
+            normalized_action = action.strip().upper()
+
+            if normalized_action == "CREATE":
+                filters.append(
+                    or_(
+                        ActivityLog.action == "CREATE",
+                        ActivityLog.action.ilike("%.created"),
+                    )
+                )
+            elif normalized_action == "UPDATE":
+                filters.append(
+                    or_(
+                        ActivityLog.action == "UPDATE",
+                        ActivityLog.action.ilike("%.updated"),
+                    )
+                )
+            elif normalized_action == "DELETE":
+                filters.append(
+                    or_(
+                        ActivityLog.action == "DELETE",
+                        ActivityLog.action.ilike("%.deleted"),
+                    )
+                )
+            elif normalized_action == "SALE":
+                filters.append(
+                    or_(
+                        ActivityLog.action == "SALE",
+                        ActivityLog.action == "SALE_CREATED",
+                    )
+                )
+            elif normalized_action == "STOCK_IN":
+                filters.append(
+                    or_(
+                        ActivityLog.action == "STOCK_IN",
+                        ActivityLog.action == "purchase.received",
+                    )
+                )
+            else:
+                filters.append(ActivityLog.action == normalized_action)
+
         if entity_type:
-            filters.append(ActivityLog.entity_type == entity_type.strip())
+            normalized_entity_type = entity_type.strip().lower()
+            filters.append(
+                func.lower(ActivityLog.entity_type) == normalized_entity_type
+            )
+
         if entity_id is not None:
             filters.append(ActivityLog.entity_id == entity_id)
+
         if start_date is not None:
             filters.append(ActivityLog.created_at >= start_date)
+
         if end_date is not None:
             filters.append(ActivityLog.created_at <= end_date)
 
-        count_statement = select(func.count()).select_from(ActivityLog).where(*filters)
+        count_statement = (
+            select(func.count())
+            .select_from(ActivityLog)
+            .where(*filters)
+        )
         total = int((await session.execute(count_statement)).scalar_one())
 
         statement: Select[tuple[ActivityLog]] = (
@@ -93,4 +144,3 @@ class ActivityLogService:
 
 
 activity_log_service = ActivityLogService()
-
