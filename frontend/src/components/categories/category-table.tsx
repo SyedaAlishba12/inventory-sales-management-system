@@ -15,9 +15,15 @@ interface CategoryTableProps {
   categories: Category[];
   onEdit: (category: Category) => void;
   onDelete: (categoryId: string) => void;
+  isAdmin: boolean;
 }
 
-export function CategoryTable({ categories, onEdit, onDelete }: CategoryTableProps) {
+export function CategoryTable({
+  categories,
+  onEdit,
+  onDelete,
+  isAdmin,
+}: CategoryTableProps) {
   return (
     <div className="rounded-md border border-slate-200 bg-white shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
@@ -49,22 +55,27 @@ export function CategoryTable({ categories, onEdit, onDelete }: CategoryTablePro
                     {new Date(cat.created_at).toLocaleDateString()}
                   </td>
                   <td className="py-3 px-4 text-right space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onEdit(cat)}
-                      className="h-8 px-2 text-[#0F4C5C] border-slate-200 hover:bg-slate-100"
-                    >
-                      <Edit className="size-3.5 mr-1" /> Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onDelete(cat.id)}
-                      className="h-8 px-2 text-red-600 border-red-100 hover:bg-red-50"
-                    >
-                      <Trash2 className="size-3.5 mr-1" /> Delete
-                    </Button>
+                    {isAdmin && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onEdit(cat)}
+                          className="h-8 px-2 text-[#0F4C5C] border-slate-200 hover:bg-slate-100"
+                        >
+                          <Edit className="size-3.5 mr-1" /> Edit
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onDelete(cat.id)}
+                          className="h-8 px-2 text-red-600 border-red-100 hover:bg-red-50"
+                        >
+                          <Trash2 className="size-3.5 mr-1" /> Delete
+                        </Button>
+                      </>
+                    )}
                   </td>
                 </tr>
               ))

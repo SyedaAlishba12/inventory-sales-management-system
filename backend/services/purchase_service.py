@@ -43,6 +43,7 @@ from models.user import User
 from schemas.purchase_schema import PurchaseCreate, PurchaseUpdate
 from services.activity_log_service import activity_log_service
 from services.inventory_service import InventoryService
+from services.notification_service import NotificationService
 
 
 class PurchaseService:
@@ -59,8 +60,6 @@ class PurchaseService:
         Validates:
             - Supplier exists.
             - At least one item is present.
-
-        Computes total_cost from item quantities × cost_prices.
 
         Computes total_cost from item quantities × cost_prices.
 
@@ -104,15 +103,16 @@ class PurchaseService:
 
         await db.flush()
         await db.refresh(purchase)
-        
+
         await activity_log_service.log(
             db,
             action="purchase.created",
             entity_type="purchase",
             entity_id=purchase.id,
             user_id=current_user.id,
-            description=f"Created purchase order for supplier {supplier.name}"
+            description=f"Created purchase order for supplier {supplier.name}",
         )
+
         await db.commit()
 
         # Re-fetch with items eagerly loaded for the response
@@ -146,7 +146,11 @@ class PurchaseService:
     # ------------------------------------------------------------------
 
     async def update(
-        self, db: AsyncSession, purchase_id: uuid.UUID, payload: PurchaseUpdate, user_id: uuid.UUID
+        self,
+        db: AsyncSession,
+        purchase_id: uuid.UUID,
+        payload: PurchaseUpdate,
+        user_id: uuid.UUID,
     ) -> Purchase:
         """Update the status or notes of an existing purchase order.
 
@@ -157,19 +161,21 @@ class PurchaseService:
 
         if payload.payment_status is not None:
             purchase.payment_status = PaymentStatus(payload.payment_status)
+
         if payload.notes is not None:
             purchase.notes = payload.notes
 
         await db.flush()
-        
+
         await activity_log_service.log(
             db,
             action="purchase.updated",
             entity_type="purchase",
             entity_id=purchase.id,
             user_id=user_id,
-            description=f"Updated purchase order status"
+            description="Updated purchase order status",
         )
+
         await db.commit()
 
         return await self._get_with_items(db, purchase_id)
@@ -178,7 +184,12 @@ class PurchaseService:
     # delete
     # ------------------------------------------------------------------
 
-    async def delete(self, db: AsyncSession, purchase_id: uuid.UUID, user_id: uuid.UUID) -> None:
+    async def delete(
+        self,
+        db: AsyncSession,
+        purchase_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> None:
         """Delete a purchase order (and cascade-delete its items).
 
         Raises:
@@ -186,22 +197,28 @@ class PurchaseService:
         """
         purchase = await self.get(db, purchase_id)
         await db.delete(purchase)
-        
+
         await activity_log_service.log(
             db,
             action="purchase.deleted",
             entity_type="purchase",
             entity_id=purchase_id,
             user_id=user_id,
-            description=f"Deleted purchase order"
+            description="Deleted purchase order",
         )
+
         await db.commit()
 
     # ------------------------------------------------------------------
     # receive
     # ------------------------------------------------------------------
 
-    async def receive_purchase(self, db: AsyncSession, purchase_id: uuid.UUID, user_id: uuid.UUID) -> Purchase:
+    async def receive_purchase(
+        self,
+        db: AsyncSession,
+        purchase_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> Purchase:
         purchase = await self.get(db, purchase_id)
 
         if purchase.purchase_status == PurchaseStatus.RECEIVED:
@@ -209,6 +226,7 @@ class PurchaseService:
                 status.HTTP_409_CONFLICT,
                 "Purchase has already been received — cannot receive it again.",
             )
+
         if purchase.purchase_status == PurchaseStatus.CANCELLED:
             raise HTTPException(
                 status.HTTP_409_CONFLICT,
@@ -218,11 +236,11 @@ class PurchaseService:
         # Call Zainab's inventory service for each PurchaseItem
         for item in purchase.items:
             await InventoryService.process_stock_in(
-                db, 
-                product_id=item.product_id, 
-                quantity=item.quantity, 
-                user_id=user_id, 
-                reason=f"Purchase {purchase.id} received"
+                db,
+                product_id=item.product_id,
+                quantity=item.quantity,
+                user_id=user_id,
+                reason=f"Purchase {purchase.id} received",
             )
 
         purchase.purchase_status = PurchaseStatus.RECEIVED
@@ -234,11 +252,19 @@ class PurchaseService:
             entity_type="purchase",
             entity_id=purchase.id,
             user_id=user_id,
-            description=f"Received purchase order"
+            description="Received purchase order",
+        )
+
+        # Create a broadcast notification for the received purchase.
+        # user_id is intentionally omitted so Admin and Staff can see it.
+        await NotificationService.create_purchase_received_notification(
+            db=db,
+            purchase_id=purchase.id,
         )
 
         await db.commit()
         await db.refresh(purchase)
+
         return await self._get_with_items(db, purchase.id)
 
     # ------------------------------------------------------------------

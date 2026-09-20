@@ -4,16 +4,14 @@ from datetime import date, datetime, time, timezone
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import case, func, select
+from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.category import Category
 from models.customer import Customer
 from models.inventory import Inventory
 from models.inventory_movement import InventoryMovement
 from models.product import Product
 from models.purchase import PaymentStatus, Purchase
-from models.purchase_item import PurchaseItem
 from models.sale import PaymentMethod, Sale, SaleStatus
 from models.sale_item import SaleItem
 from models.supplier import Supplier
@@ -85,15 +83,25 @@ class ReportService:
         )
 
         if payment_method is not None:
-            filters.append(Sale.payment_method == payment_method)
+            filters.append(
+                Sale.payment_method == payment_method
+            )
 
         if status is not None:
-            filters.append(Sale.status == status)
+            filters.append(
+                Sale.status == status
+            )
 
         summary_stmt = select(
-            func.coalesce(func.sum(Sale.total), 0).label("total_sales"),
+            func.coalesce(
+                func.sum(Sale.total),
+                0,
+            ).label("total_sales"),
             func.count(Sale.id).label("total_transactions"),
-            func.coalesce(func.avg(Sale.total), 0).label("average_sale"),
+            func.coalesce(
+                func.avg(Sale.total),
+                0,
+            ).label("average_sale"),
         ).where(*filters)
 
         summary_result = await session.execute(summary_stmt)
@@ -117,7 +125,10 @@ class ReportService:
                 Sale.tax,
                 Sale.total,
             )
-            .outerjoin(Customer, Sale.customer_id == Customer.id)
+            .outerjoin(
+                Customer,
+                Sale.customer_id == Customer.id,
+            )
             .where(*filters)
             .order_by(Sale.sale_date.desc())
         )
@@ -156,13 +167,20 @@ class ReportService:
         end_date: Optional[date] = None,
     ) -> ProductReportResponse:
 
-        filters = self._date_filters(
+        sale_filters = self._date_filters(
             Sale.sale_date,
             start_date,
             end_date,
         )
 
-        filters.append(Sale.status == SaleStatus.COMPLETED)
+        sale_filters.append(
+            Sale.status == SaleStatus.COMPLETED
+        )
+
+        sale_join_condition = and_(
+            Sale.id == SaleItem.sale_id,
+            *sale_filters,
+        )
 
         stmt = (
             select(
@@ -178,11 +196,26 @@ class ReportService:
                     0,
                 ).label("revenue"),
             )
-            .join(SaleItem, SaleItem.product_id == Product.id)
-            .join(Sale, Sale.id == SaleItem.sale_id)
-            .where(*filters)
-            .group_by(Product.id, Product.name, Product.sku)
-            .order_by(func.sum(SaleItem.quantity).desc())
+            .outerjoin(
+                SaleItem,
+                SaleItem.product_id == Product.id,
+            )
+            .outerjoin(
+                Sale,
+                sale_join_condition,
+            )
+            .group_by(
+                Product.id,
+                Product.name,
+                Product.sku,
+            )
+            .order_by(
+                func.coalesce(
+                    func.sum(SaleItem.quantity),
+                    0,
+                ).desc(),
+                Product.name,
+            )
         )
 
         result = await session.execute(stmt)
@@ -215,7 +248,10 @@ class ReportService:
                 Inventory.damaged_stock,
                 Product.min_stock_level,
             )
-            .join(Inventory, Inventory.product_id == Product.id)
+            .join(
+                Inventory,
+                Inventory.product_id == Product.id,
+            )
             .order_by(Product.name)
         )
 
@@ -261,9 +297,14 @@ class ReportService:
                 InventoryMovement.reason,
                 InventoryMovement.created_at,
             )
-            .join(Product, Product.id == InventoryMovement.product_id)
+            .join(
+                Product,
+                Product.id == InventoryMovement.product_id,
+            )
             .where(*filters)
-            .order_by(InventoryMovement.created_at.desc())
+            .order_by(
+                InventoryMovement.created_at.desc()
+            )
         )
 
         result = await session.execute(stmt)
@@ -297,10 +338,16 @@ class ReportService:
             start_date,
             end_date,
         )
-        sale_filters.append(Sale.status == SaleStatus.COMPLETED)
+
+        sale_filters.append(
+            Sale.status == SaleStatus.COMPLETED
+        )
 
         revenue_stmt = select(
-            func.coalesce(func.sum(Sale.total), 0)
+            func.coalesce(
+                func.sum(Sale.total),
+                0,
+            )
         ).where(*sale_filters)
 
         revenue_result = await session.execute(revenue_stmt)
@@ -311,19 +358,29 @@ class ReportService:
             start_date,
             end_date,
         )
-        cost_filters.append(Sale.status == SaleStatus.COMPLETED)
+
+        cost_filters.append(
+            Sale.status == SaleStatus.COMPLETED
+        )
 
         cost_stmt = (
             select(
                 func.coalesce(
                     func.sum(
-                        SaleItem.quantity * Product.cost_price
+                        SaleItem.quantity
+                        * Product.cost_price
                     ),
                     0,
                 )
             )
-            .join(Sale, Sale.id == SaleItem.sale_id)
-            .join(Product, Product.id == SaleItem.product_id)
+            .join(
+                Sale,
+                Sale.id == SaleItem.sale_id,
+            )
+            .join(
+                Product,
+                Product.id == SaleItem.product_id,
+            )
             .where(*cost_filters)
         )
 
@@ -352,7 +409,15 @@ class ReportService:
             start_date,
             end_date,
         )
-        sale_filters.append(Sale.status == SaleStatus.COMPLETED)
+
+        sale_filters.append(
+            Sale.status == SaleStatus.COMPLETED
+        )
+
+        customer_sale_join_condition = and_(
+            Sale.customer_id == Customer.id,
+            *sale_filters,
+        )
 
         stmt = (
             select(
@@ -360,21 +425,31 @@ class ReportService:
                 Customer.name.label("customer_name"),
                 Customer.phone,
                 Customer.email,
-                func.count(Sale.id).label("total_purchases"),
+                func.count(Sale.id).label(
+                    "total_purchases"
+                ),
                 func.coalesce(
                     func.sum(Sale.total),
                     0,
                 ).label("total_spending"),
             )
-            .outerjoin(Sale, Sale.customer_id == Customer.id)
-            .where(*sale_filters)
+            .outerjoin(
+                Sale,
+                customer_sale_join_condition,
+            )
             .group_by(
                 Customer.id,
                 Customer.name,
                 Customer.phone,
                 Customer.email,
             )
-            .order_by(func.sum(Sale.total).desc().nullslast())
+            .order_by(
+                func.coalesce(
+                    func.sum(Sale.total),
+                    0,
+                ).desc(),
+                Customer.name,
+            )
         )
 
         result = await session.execute(stmt)
@@ -410,7 +485,9 @@ class ReportService:
             select(
                 Supplier.id.label("supplier_id"),
                 Supplier.name.label("supplier_name"),
-                func.count(Purchase.id).label("total_purchases"),
+                func.count(Purchase.id).label(
+                    "total_purchases"
+                ),
                 func.coalesce(
                     func.sum(Purchase.total_cost),
                     0,
@@ -434,7 +511,10 @@ class ReportService:
                 Purchase.supplier_id == Supplier.id,
             )
             .where(*filters)
-            .group_by(Supplier.id, Supplier.name)
+            .group_by(
+                Supplier.id,
+                Supplier.name,
+            )
             .order_by(Supplier.name)
         )
 
@@ -481,7 +561,9 @@ class ReportService:
                 Supplier.id == Purchase.supplier_id,
             )
             .where(*filters)
-            .order_by(Purchase.purchase_date.desc())
+            .order_by(
+                Purchase.purchase_date.desc()
+            )
         )
 
         result = await session.execute(stmt)
@@ -566,7 +648,9 @@ class ReportService:
             start_date=start_date,
             end_date=end_date,
             total_sales=sales_report.summary.total_sales,
-            total_transactions=sales_report.summary.total_transactions,
+            total_transactions=(
+                sales_report.summary.total_transactions
+            ),
             average_sale=sales_report.summary.average_sale,
             revenue=financial_report.summary.revenue,
             cost=financial_report.summary.cost,

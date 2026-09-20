@@ -6,7 +6,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { AuthGuard } from "@/components/auth/auth-guard";
-import { DataTable, type DataTableColumn } from "@/components/shared/data-table";
+import { MainLayout } from "@/components/layout/main-layout";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,11 +27,12 @@ import type { SupplierResponse } from "@/types/supplier";
 function PurchaseDetailContent({ id }: { id: string }) {
   const router = useRouter();
 
-  const [purchase, setPurchase] = useState<PurchaseResponse | null>(null);
-  const [supplier, setSupplier] = useState<SupplierResponse | null>(null);
-  const [productMap, setProductMap] = useState<Map<string, string>>(
-    new Map(),
-  );
+  const [purchase, setPurchase] =
+    useState<PurchaseResponse | null>(null);
+  const [supplier, setSupplier] =
+    useState<SupplierResponse | null>(null);
+  const [productMap, setProductMap] =
+    useState<Map<string, string>>(new Map());
 
   const [isLoading, setIsLoading] = useState(true);
   const [isReceiving, setIsReceiving] = useState(false);
@@ -36,9 +41,10 @@ function PurchaseDetailContent({ id }: { id: string }) {
     setIsLoading(true);
 
     try {
-      const purchaseData = await apiClient.get<PurchaseResponse>(
-        `/api/purchases/${id}`,
-      );
+      const purchaseData =
+        await apiClient.get<PurchaseResponse>(
+          `/api/purchases/${id}`,
+        );
 
       setPurchase(purchaseData);
 
@@ -79,12 +85,16 @@ function PurchaseDetailContent({ id }: { id: string }) {
     setIsReceiving(true);
 
     try {
-      // The prompt mentioned PATCH /api/purchases/:id/receive
-      await apiClient.patch(`/api/purchases/${id}/receive`, {});
+      await apiClient.patch(
+        `/api/purchases/${id}/receive`,
+        {},
+      );
 
-      toastUtils.success("Purchase order marked as received");
+      toastUtils.success(
+        "Purchase order marked as received",
+      );
 
-      fetchData(); // Refresh the data to show the new status
+      fetchData();
     } catch (err) {
       toastUtils.error(err, "Error receiving order");
       setIsReceiving(false);
@@ -106,38 +116,44 @@ function PurchaseDetailContent({ id }: { id: string }) {
     {
       id: "cost_price",
       header: "Unit Cost",
-      accessor: (row) => formatCurrency(Number(row.cost_price)),
+      accessor: (row) =>
+        formatCurrency(Number(row.cost_price)),
       align: "right",
     },
     {
       id: "total_price",
       header: "Line Total",
-      accessor: (row) => formatCurrency(Number(row.total_price)),
+      accessor: (row) =>
+        formatCurrency(Number(row.total_price)),
       align: "right",
     },
   ];
 
   if (isLoading) {
     return (
-      <div className="p-6">
-        <Skeleton className="mb-6 h-8 w-64" />
-        <Skeleton className="mb-6 h-40 rounded-xl" />
-        <Skeleton className="h-64 rounded-xl" />
-      </div>
+      <MainLayout>
+        <div className="p-6 lg:p-10">
+          <Skeleton className="mb-6 h-8 w-64" />
+          <Skeleton className="mb-6 h-40 rounded-xl" />
+          <Skeleton className="h-64 rounded-xl" />
+        </div>
+      </MainLayout>
     );
   }
 
   if (!purchase) {
     return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center p-6">
-        <h2 className="mb-4 text-xl font-bold">
-          Purchase Order not found
-        </h2>
+      <MainLayout>
+        <div className="flex min-h-[50vh] flex-col items-center justify-center p-6">
+          <h2 className="mb-4 text-xl font-bold">
+            Purchase Order not found
+          </h2>
 
-        <Button onClick={() => router.push("/purchases")}>
-          Back to Purchases
-        </Button>
-      </div>
+          <Button onClick={() => router.push("/purchases")}>
+            Back to Purchases
+          </Button>
+        </div>
+      </MainLayout>
     );
   }
 
@@ -145,94 +161,109 @@ function PurchaseDetailContent({ id }: { id: string }) {
     purchase.purchase_status.toLowerCase() === "pending";
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-6 pb-16 lg:p-10 lg:pb-20">
-      <div className="mb-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/purchases">
-              <ArrowLeft className="size-4" />
-            </Link>
-          </Button>
+    <MainLayout>
+      <div className="mx-auto max-w-5xl space-y-6 p-6 pb-16 lg:p-10 lg:pb-20">
+        <div className="mb-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" asChild>
+              <Link href="/purchases">
+                <ArrowLeft className="size-4" />
+              </Link>
+            </Button>
 
-          <div>
-            <h1 className="font-mono text-2xl font-bold tracking-tight text-[#0F4C5C]">
-              PO: {purchase.id.split("-")[0]}
-            </h1>
+            <div>
+              <h1 className="font-mono text-2xl font-bold tracking-tight text-[#0F4C5C]">
+                PO: {purchase.id.split("-")[0]}
+              </h1>
 
-            <div className="mt-1 flex items-center gap-2">
-              <StatusBadge status={purchase.purchase_status} />
-              <StatusBadge status={purchase.payment_status} />
+              <div className="mt-1 flex items-center gap-2">
+                <StatusBadge
+                  status={purchase.purchase_status}
+                />
+                <StatusBadge status={purchase.payment_status} />
+              </div>
             </div>
+          </div>
+
+          {isPending && (
+            <Button
+              onClick={handleReceive}
+              disabled={isReceiving}
+              className="bg-[#2E7D32] hover:bg-[#1B5E20]"
+            >
+              <Package className="mr-2 size-4" />
+              {isReceiving
+                ? "Receiving..."
+                : "Mark as Received"}
+            </Button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <div className="space-y-4 rounded-xl border bg-card p-6">
+            <h2 className="flex items-center gap-2 text-lg font-semibold">
+              Order Details
+            </h2>
+
+            <div className="grid grid-cols-2 gap-y-4 text-sm">
+              <div className="text-muted-foreground">
+                Order ID
+              </div>
+
+              <div className="font-mono text-xs">
+                {purchase.id}
+              </div>
+
+              <div className="text-muted-foreground">
+                Supplier
+              </div>
+
+              <div className="font-medium">
+                {supplier ? (
+                  <Link
+                    href={`/suppliers/${supplier.id}`}
+                    className="text-primary hover:underline"
+                  >
+                    {supplier.name}
+                  </Link>
+                ) : (
+                  "Unknown Supplier"
+                )}
+              </div>
+
+              <div className="text-muted-foreground">
+                Order Total
+              </div>
+
+              <div className="text-lg font-bold">
+                {formatCurrency(
+                  Number(purchase.total_cost),
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4 rounded-xl border bg-card p-6">
+            <h2 className="text-lg font-semibold">Notes</h2>
+
+            <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+              {purchase.notes ||
+                "No notes provided for this order."}
+            </p>
           </div>
         </div>
 
-        {isPending && (
-          <Button
-            onClick={handleReceive}
-            disabled={isReceiving}
-            className="bg-[#2E7D32] hover:bg-[#1B5E20]"
-          >
-            <Package className="mr-2 size-4" />
-            {isReceiving ? "Receiving..." : "Mark as Received"}
-          </Button>
-        )}
-      </div>
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold">Line Items</h2>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <div className="space-y-4 rounded-xl border bg-card p-6">
-          <h2 className="flex items-center gap-2 text-lg font-semibold">
-            Order Details
-          </h2>
-
-          <div className="grid grid-cols-2 gap-y-4 text-sm">
-            <div className="text-muted-foreground">Order ID</div>
-
-            <div className="font-mono text-xs">
-              {purchase.id}
-            </div>
-
-            <div className="text-muted-foreground">Supplier</div>
-
-            <div className="font-medium">
-              {supplier ? (
-                <Link
-                  href={`/suppliers/${supplier.id}`}
-                  className="text-primary hover:underline"
-                >
-                  {supplier.name}
-                </Link>
-              ) : (
-                "Unknown Supplier"
-              )}
-            </div>
-
-            <div className="text-muted-foreground">Order Total</div>
-
-            <div className="text-lg font-bold">
-              {formatCurrency(Number(purchase.total_cost))}
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-4 rounded-xl border bg-card p-6">
-          <h2 className="text-lg font-semibold">Notes</h2>
-
-          <p className="whitespace-pre-wrap text-sm text-muted-foreground">
-            {purchase.notes || "No notes provided for this order."}
-          </p>
+          <DataTable
+            columns={columns}
+            data={purchase.items}
+            getRowId={(row) => row.id}
+          />
         </div>
       </div>
-
-      <div className="space-y-4">
-        <h2 className="text-xl font-bold">Line Items</h2>
-
-        <DataTable
-          columns={columns}
-          data={purchase.items}
-          getRowId={(row) => row.id}
-        />
-      </div>
-    </div>
+    </MainLayout>
   );
 }
 

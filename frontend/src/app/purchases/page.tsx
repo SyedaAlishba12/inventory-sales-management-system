@@ -6,7 +6,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 import { AuthGuard } from "@/components/auth/auth-guard";
-import { DataTable, type DataTableColumn } from "@/components/shared/data-table";
+import { MainLayout } from "@/components/layout/main-layout";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "@/components/shared/data-table";
 import { FilterBar } from "@/components/shared/filter-bar";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
@@ -86,19 +90,24 @@ function PurchasesContent() {
     {
       id: "status",
       header: "Purchase Status",
-      accessor: (row) => <StatusBadge status={row.purchase_status} />,
+      accessor: (row) => (
+        <StatusBadge status={row.purchase_status} />
+      ),
       sortable: true,
       sortValue: (row) => row.purchase_status,
     },
     {
       id: "payment",
       header: "Payment Status",
-      accessor: (row) => <StatusBadge status={row.payment_status} />,
+      accessor: (row) => (
+        <StatusBadge status={row.payment_status} />
+      ),
     },
     {
       id: "total",
       header: "Total Cost",
-      accessor: (row) => formatCurrency(Number(row.total_cost)),
+      accessor: (row) =>
+        formatCurrency(Number(row.total_cost)),
       align: "right",
       sortable: true,
       sortValue: (row) => Number(row.total_cost),
@@ -106,62 +115,66 @@ function PurchasesContent() {
   ];
 
   return (
-    <div className="space-y-6 p-6 pb-16 lg:p-10 lg:pb-20">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => router.push("/dashboard")}
-            aria-label="Back to Dashboard"
-          >
-            <ArrowLeft className="size-4" />
-          </Button>
+    <MainLayout>
+      <div className="space-y-6 p-6 pb-16 lg:p-10 lg:pb-20">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => router.push("/dashboard")}
+              aria-label="Back to Dashboard"
+            >
+              <ArrowLeft className="size-4" />
+            </Button>
 
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-[#0F4C5C]">
-              Purchases
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Manage your purchase orders and incoming inventory.
-            </p>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-[#0F4C5C]">
+                Purchases
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Manage your purchase orders and incoming inventory.
+              </p>
+            </div>
           </div>
+
+          <Button asChild>
+            <Link href="/purchases/new">
+              <Plus className="mr-2 size-4" />
+              New Purchase Order
+            </Link>
+          </Button>
         </div>
 
-        <Button asChild>
-          <Link href="/purchases/new">
-            <Plus className="mr-2 size-4" />
-            New Purchase Order
-          </Link>
-        </Button>
-      </div>
-
-      <FilterBar
-        hasActiveFilters={statusFilter !== "all"}
-        onReset={() => setStatusFilter("all")}
-      >
-        <select
-          className="flex h-9 w-full max-w-[200px] items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+        <FilterBar
+          hasActiveFilters={statusFilter !== "all"}
+          onReset={() => setStatusFilter("all")}
         >
-          <option value="all">All Statuses</option>
-          <option value="pending">Pending</option>
-          <option value="received">Received</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
-      </FilterBar>
+          <select
+            className="flex h-9 w-full max-w-[200px] items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="all">All Statuses</option>
+            <option value="pending">Pending</option>
+            <option value="received">Received</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </FilterBar>
 
-      <DataTable
-        columns={columns}
-        data={filteredPurchases}
-        getRowId={(row) => row.id}
-        loading={isLoading}
-        onRowClick={(row) => router.push(`/purchases/${row.id}`)}
-        emptyTitle="No purchases found"
-        emptyDescription="You haven't created any purchase orders yet."
-      />
-    </div>
+        <DataTable
+          columns={columns}
+          data={filteredPurchases}
+          getRowId={(row) => row.id}
+          loading={isLoading}
+          onRowClick={(row) =>
+            router.push(`/purchases/${row.id}`)
+          }
+          emptyTitle="No purchases found"
+          emptyDescription="You haven't created any purchase orders yet."
+        />
+      </div>
+    </MainLayout>
   );
 }
 
@@ -172,4 +185,3 @@ export default function PurchasesPage() {
     </AuthGuard>
   );
 }
-

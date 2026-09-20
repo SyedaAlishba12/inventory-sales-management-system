@@ -34,6 +34,8 @@ interface ProductTableProps {
   onView: (product: Product) => void;
   onEdit: (product: Product) => void;
   onDelete: (product: Product) => void;
+
+  isAdmin: boolean;
 }
 
 export function ProductTable({
@@ -41,8 +43,8 @@ export function ProductTable({
   onView,
   onEdit,
   onDelete,
+  isAdmin,
 }: ProductTableProps) {
-
   return (
     <div className="overflow-hidden rounded-xl border border-[#D7E0E3] bg-card shadow-sm">
 
@@ -86,7 +88,6 @@ export function ProductTable({
 
           </thead>
 
-
           <tbody className="divide-y divide-[#D7E0E3]">
 
             {products.length > 0 ? (
@@ -124,7 +125,6 @@ export function ProductTable({
 
                       </div>
 
-
                       <div>
 
                         <div className="font-semibold text-[#0F4C5C]">
@@ -141,13 +141,11 @@ export function ProductTable({
 
                   </td>
 
-
                   {/* CATEGORY */}
 
                   <td className="px-6 py-4 text-[#52646A]">
                     {product.category}
                   </td>
-
 
                   {/* COST */}
 
@@ -155,20 +153,17 @@ export function ProductTable({
                     Rs {product.costPrice.toLocaleString()}
                   </td>
 
-
                   {/* SELLING */}
 
                   <td className="px-6 py-4 font-medium text-[#0F4C5C]">
                     Rs {product.sellingPrice.toLocaleString()}
                   </td>
 
-
                   {/* STOCK */}
 
                   <td className="px-6 py-4 font-semibold">
                     {product.stock} units
                   </td>
-
 
                   {/* STATUS */}
 
@@ -194,44 +189,57 @@ export function ProductTable({
 
                   </td>
 
-
                   {/* ACTIONS */}
 
                   <td className="px-6 py-4 text-right">
 
                     <div className="flex items-center justify-end gap-1">
 
+                      {/* VIEW — ADMIN + STAFF */}
+
                       <Button
                         variant="ghost"
                         size="icon"
                         title="View Product"
-                        onClick={() => onView(product)}
+                        onClick={() =>
+                          onView(product)
+                        }
                         className="size-8 text-[#52646A] hover:text-[#0F4C5C]"
                       >
                         <Eye className="size-4" />
                       </Button>
 
+                      {/* EDIT — ADMIN ONLY */}
 
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title="Edit Product"
-                        onClick={() => onEdit(product)}
-                        className="size-8 text-[#52646A] hover:text-[#0F4C5C]"
-                      >
-                        <Edit className="size-4" />
-                      </Button>
+                      {isAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Edit Product"
+                          onClick={() =>
+                            onEdit(product)
+                          }
+                          className="size-8 text-[#52646A] hover:text-[#0F4C5C]"
+                        >
+                          <Edit className="size-4" />
+                        </Button>
+                      )}
 
+                      {/* DELETE — ADMIN ONLY */}
 
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title="Delete Product"
-                        onClick={() => onDelete(product)}
-                        className="size-8 text-[#E67E72] hover:bg-[#E67E72]/10"
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
+                      {isAdmin && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Delete Product"
+                          onClick={() =>
+                            onDelete(product)
+                          }
+                          className="size-8 text-[#E67E72] hover:bg-[#E67E72]/10"
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      )}
 
                     </div>
 

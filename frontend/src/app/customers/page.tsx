@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { CustomerForm } from "@/components/customers/customer-form";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { MainLayout } from "@/components/layout/main-layout";
 import {
   DataTable,
   type DataTableColumn,
@@ -40,33 +41,25 @@ function CustomersContent() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const fetchCustomers = useCallback(
-    async (searchQuery: string) => {
-      setIsLoading(true);
+  const fetchCustomers = useCallback(async () => {
+    setIsLoading(true);
 
-      try {
-        const data = await apiClient.get<CustomerSummary[]>(
-          "/api/customers",
-          {
-            query: searchQuery
-              ? { search: searchQuery }
-              : undefined,
-          },
-        );
+    try {
+      const data = await apiClient.get<CustomerSummary[]>(
+        "/api/customers",
+      );
 
-        setCustomers(data);
-      } catch (err) {
-        toastUtils.error(err, "Error fetching customers");
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [],
-  );
+      setCustomers(data);
+    } catch (err) {
+      toastUtils.error(err, "Error fetching customers");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    fetchCustomers(debouncedSearch);
-  }, [debouncedSearch, fetchCustomers]);
+    fetchCustomers();
+  }, [fetchCustomers]);
 
   const handleAddCustomer = async (data: CustomerCreate) => {
     setIsSubmitting(true);
@@ -78,13 +71,27 @@ function CustomersContent() {
 
       setIsAddOpen(false);
 
-      fetchCustomers(debouncedSearch);
+      fetchCustomers();
     } catch (err) {
       throw err;
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const filteredCustomers = customers.filter((customer) => {
+    const searchTerm = debouncedSearch.trim().toLowerCase();
+
+    if (!searchTerm) {
+      return true;
+    }
+
+    return (
+      customer.name?.toLowerCase().includes(searchTerm) ||
+      customer.email?.toLowerCase().includes(searchTerm) ||
+      customer.phone?.toLowerCase().includes(searchTerm)
+    );
+  });
 
   const columns: DataTableColumn<CustomerSummary>[] = [
     {
@@ -114,75 +121,77 @@ function CustomersContent() {
   ];
 
   return (
-    <div className="space-y-6 p-6 pb-16 lg:p-10 lg:pb-20">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => router.push("/dashboard")}
-            aria-label="Back to Dashboard"
-          >
-            <ArrowLeft className="size-4" />
-          </Button>
+    <MainLayout>
+      <div className="space-y-6 p-6 pb-16 lg:p-10 lg:pb-20">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => router.push("/dashboard")}
+              aria-label="Back to Dashboard"
+            >
+              <ArrowLeft className="size-4" />
+            </Button>
 
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-[#0F4C5C]">
-              Customers
-            </h1>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-[#0F4C5C]">
+                Customers
+              </h1>
 
-            <p className="text-sm text-muted-foreground">
-              Manage your customer database and view their purchase
-              history.
-            </p>
+              <p className="text-sm text-muted-foreground">
+                Manage your customer database and view their purchase
+                history.
+              </p>
+            </div>
           </div>
+
+          <Button onClick={() => setIsAddOpen(true)}>
+            <Plus className="mr-2 size-4" />
+            Add Customer
+          </Button>
         </div>
 
-        <Button onClick={() => setIsAddOpen(true)}>
-          <Plus className="mr-2 size-4" />
-          Add Customer
-        </Button>
-      </div>
-
-      <div className="flex items-center gap-4">
-        <SearchBar
-          value={search}
-          onChange={setSearch}
-          placeholder="Search customers by name, email, or phone..."
-          className="max-w-md"
-        />
-      </div>
-
-      <DataTable
-        columns={columns}
-        data={customers}
-        getRowId={(row) => row.id as string}
-        loading={isLoading}
-        onRowClick={(row) =>
-          router.push(`/customers/${row.id}`)
-        }
-        emptyTitle="No customers found"
-        emptyDescription={
-          search
-            ? "No customers match your search criteria."
-            : "Get started by adding your first customer."
-        }
-      />
-
-      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add New Customer</DialogTitle>
-          </DialogHeader>
-
-          <CustomerForm
-            onSubmit={handleAddCustomer as any}
-            onCancel={() => setIsAddOpen(false)}
-            isLoading={isSubmitting}
+        <div className="flex items-center gap-4">
+          <SearchBar
+            value={search}
+            onChange={setSearch}
+            placeholder="Search customers by name, email, or phone..."
+            className="max-w-md"
           />
-        </DialogContent>
-      </Dialog>
-    </div>
+        </div>
+
+        <DataTable
+          columns={columns}
+          data={filteredCustomers}
+          getRowId={(row) => row.id as string}
+          loading={isLoading}
+          onRowClick={(row) =>
+            router.push(`/customers/${row.id}`)
+          }
+          emptyTitle="No customers found"
+          emptyDescription={
+            search
+              ? "No customers match your search criteria."
+              : "Get started by adding your first customer."
+          }
+        />
+
+        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add New Customer</DialogTitle>
+            </DialogHeader>
+
+            <CustomerForm
+              onSubmit={handleAddCustomer as any}
+              onCancel={() => setIsAddOpen(false)}
+              isLoading={isSubmitting}
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
+    </MainLayout>
   );
 }
 
@@ -193,4 +202,3 @@ export default function CustomersPage() {
     </AuthGuard>
   );
 }
-

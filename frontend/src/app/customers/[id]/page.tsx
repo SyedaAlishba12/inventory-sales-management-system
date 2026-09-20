@@ -7,8 +7,12 @@ import { useRouter } from "next/navigation";
 
 import { CustomerForm } from "@/components/customers/customer-form";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { MainLayout } from "@/components/layout/main-layout";
 import { ConfirmationDialog } from "@/components/shared/confirmation-dialog";
-import { DataTable, type DataTableColumn } from "@/components/shared/data-table";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,13 +51,15 @@ function CustomerDetailContent({ id }: { id: string }) {
 
     try {
       const [customerData, purchasesData] = await Promise.all([
-        apiClient.get<CustomerResponse>(`/api/customers/${id}`),
+        apiClient.get<CustomerResponse>(
+          `/api/customers/${id}`,
+        ),
 
         apiClient
           .get<PurchaseResponse[]>(
             `/api/customers/${id}/purchases`,
           )
-          .catch(() => []), // Fallback to empty array if not implemented yet
+          .catch(() => []),
       ]);
 
       setCustomer(customerData);
@@ -136,118 +142,124 @@ function CustomerDetailContent({ id }: { id: string }) {
 
   if (isLoading) {
     return (
-      <div className="p-6">
-        <Skeleton className="mb-6 h-8 w-64" />
+      <MainLayout>
+        <div className="p-6 lg:p-10">
+          <Skeleton className="mb-6 h-8 w-64" />
 
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <Skeleton className="h-40 rounded-xl" />
-          <Skeleton className="h-40 rounded-xl" />
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <Skeleton className="h-40 rounded-xl" />
+            <Skeleton className="h-40 rounded-xl" />
+          </div>
         </div>
-      </div>
+      </MainLayout>
     );
   }
 
   if (!customer) {
     return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center p-6">
-        <h2 className="mb-4 text-xl font-bold">
-          Customer not found
-        </h2>
+      <MainLayout>
+        <div className="flex min-h-[50vh] flex-col items-center justify-center p-6">
+          <h2 className="mb-4 text-xl font-bold">
+            Customer not found
+          </h2>
 
-        <Button onClick={() => router.push("/customers")}>
-          Back to Customers
-        </Button>
-      </div>
+          <Button onClick={() => router.push("/customers")}>
+            Back to Customers
+          </Button>
+        </div>
+      </MainLayout>
     );
   }
 
   return (
-    <div className="space-y-6 p-6 pb-16 lg:p-10 lg:pb-20">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/customers">
-            <ArrowLeft className="size-4" />
-          </Link>
-        </Button>
+    <MainLayout>
+      <div className="space-y-6 p-6 pb-16 lg:p-10 lg:pb-20">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" asChild>
+            <Link href="/customers">
+              <ArrowLeft className="size-4" />
+            </Link>
+          </Button>
 
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold tracking-tight text-[#0F4C5C]">
-            {customer.name}
-          </h1>
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold tracking-tight text-[#0F4C5C]">
+              {customer.name}
+            </h1>
 
-          <p className="text-sm text-muted-foreground">
-            {customer.email || "No email"} •{" "}
-            {customer.phone || "No phone"}
+            <p className="text-sm text-muted-foreground">
+              {customer.email || "No email"} •{" "}
+              {customer.phone || "No phone"}
+            </p>
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsEditOpen(true)}
+            >
+              <Edit className="mr-2 size-4" />
+              Edit
+            </Button>
+
+            <Button
+              variant="destructive"
+              onClick={() => setIsDeleteDialogOpen(true)}
+            >
+              <Trash2 className="mr-2 size-4" />
+              Delete
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-xl border bg-card p-6">
+          <h2 className="mb-4 text-lg font-semibold">Address</h2>
+
+          <p className="text-sm">
+            {customer.address || "No address provided."}
           </p>
         </div>
 
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setIsEditOpen(true)}
-          >
-            <Edit className="mr-2 size-4" />
-            Edit
-          </Button>
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold">Purchase History</h2>
 
-          <Button
-            variant="destructive"
-            onClick={() => setIsDeleteDialogOpen(true)}
-          >
-            <Trash2 className="mr-2 size-4" />
-            Delete
-          </Button>
+          <DataTable
+            columns={columns}
+            data={purchases}
+            getRowId={(row) => row.id}
+            emptyTitle="No purchases"
+            emptyDescription="This customer has not made any purchases yet."
+          />
         </div>
-      </div>
 
-      <div className="rounded-xl border bg-card p-6">
-        <h2 className="mb-4 text-lg font-semibold">Address</h2>
+        {/* Edit Dialog */}
+        <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Customer</DialogTitle>
+            </DialogHeader>
 
-        <p className="text-sm">
-          {customer.address || "No address provided."}
-        </p>
-      </div>
+            <CustomerForm
+              initialData={customer}
+              onSubmit={handleEditCustomer as any}
+              onCancel={() => setIsEditOpen(false)}
+              isLoading={isSubmitting}
+            />
+          </DialogContent>
+        </Dialog>
 
-      <div className="space-y-4">
-        <h2 className="text-xl font-bold">Purchase History</h2>
-
-        <DataTable
-          columns={columns}
-          data={purchases}
-          getRowId={(row) => row.id}
-          emptyTitle="No purchases"
-          emptyDescription="This customer has not made any purchases yet."
+        {/* Delete Confirmation */}
+        <ConfirmationDialog
+          open={isDeleteDialogOpen}
+          onOpenChange={setIsDeleteDialogOpen}
+          title="Delete Customer"
+          description={`Are you sure you want to delete ${customer.name}? This action cannot be undone.`}
+          confirmLabel="Delete"
+          destructive
+          loading={isDeleting}
+          onConfirm={handleDeleteCustomer}
         />
       </div>
-
-      {/* Edit Dialog */}
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Customer</DialogTitle>
-          </DialogHeader>
-
-          <CustomerForm
-            initialData={customer}
-            onSubmit={handleEditCustomer as any}
-            onCancel={() => setIsEditOpen(false)}
-            isLoading={isSubmitting}
-          />
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation */}
-      <ConfirmationDialog
-        open={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
-        title="Delete Customer"
-        description={`Are you sure you want to delete ${customer.name}? This action cannot be undone.`}
-        confirmLabel="Delete"
-        destructive
-        loading={isDeleting}
-        onConfirm={handleDeleteCustomer}
-      />
-    </div>
+    </MainLayout>
   );
 }
 

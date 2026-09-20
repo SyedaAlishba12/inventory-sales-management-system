@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { SupplierForm } from "@/components/suppliers/supplier-form";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { MainLayout } from "@/components/layout/main-layout";
 import {
   DataTable,
   type DataTableColumn,
@@ -37,17 +38,14 @@ function SuppliersContent() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const fetchSuppliers = useCallback(async (searchQuery: string) => {
+  const fetchSuppliers = useCallback(async () => {
     setIsLoading(true);
+
     try {
       const data = await apiClient.get<SupplierResponse[]>(
         "/api/suppliers",
-        {
-          query: searchQuery
-            ? { search: searchQuery }
-            : undefined,
-        },
       );
+
       setSuppliers(data);
     } catch (err) {
       toastUtils.error(err, "Error fetching suppliers");
@@ -57,22 +55,41 @@ function SuppliersContent() {
   }, []);
 
   useEffect(() => {
-    fetchSuppliers(debouncedSearch);
-  }, [debouncedSearch, fetchSuppliers]);
+    fetchSuppliers();
+  }, [fetchSuppliers]);
 
   const handleAddSupplier = async (data: SupplierCreate) => {
     setIsSubmitting(true);
+
     try {
       await apiClient.post("/api/suppliers", data);
+
       toastUtils.success("Supplier added successfully");
+
       setIsAddOpen(false);
-      fetchSuppliers(debouncedSearch);
+
+      fetchSuppliers();
     } catch (err) {
       throw err;
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const filteredSuppliers = suppliers.filter((supplier) => {
+    const searchTerm = debouncedSearch.trim().toLowerCase();
+
+    if (!searchTerm) {
+      return true;
+    }
+
+    return (
+      supplier.name?.toLowerCase().includes(searchTerm) ||
+      supplier.company?.toLowerCase().includes(searchTerm) ||
+      supplier.email?.toLowerCase().includes(searchTerm) ||
+      supplier.phone?.toLowerCase().includes(searchTerm)
+    );
+  });
 
   const columns: DataTableColumn<SupplierResponse>[] = [
     {
@@ -101,72 +118,76 @@ function SuppliersContent() {
   ];
 
   return (
-    <div className="space-y-6 p-6 pb-16 lg:p-10 lg:pb-20">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => router.push("/dashboard")}
-            aria-label="Back to Dashboard"
-          >
-            <ArrowLeft className="size-4" />
-          </Button>
+    <MainLayout>
+      <div className="space-y-6 p-6 pb-16 lg:p-10 lg:pb-20">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => router.push("/dashboard")}
+              aria-label="Back to Dashboard"
+            >
+              <ArrowLeft className="size-4" />
+            </Button>
 
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-[#0F4C5C]">
-              Suppliers
-            </h1>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-[#0F4C5C]">
+                Suppliers
+              </h1>
 
-            <p className="text-sm text-muted-foreground">
-              Manage your supplier database.
-            </p>
+              <p className="text-sm text-muted-foreground">
+                Manage your supplier database.
+              </p>
+            </div>
           </div>
+
+          <Button onClick={() => setIsAddOpen(true)}>
+            <Plus className="mr-2 size-4" />
+            Add Supplier
+          </Button>
         </div>
 
-        <Button onClick={() => setIsAddOpen(true)}>
-          <Plus className="mr-2 size-4" />
-          Add Supplier
-        </Button>
-      </div>
-
-      <div className="flex items-center gap-4">
-        <SearchBar
-          value={search}
-          onChange={setSearch}
-          placeholder="Search suppliers by name, email, or phone..."
-          className="max-w-md"
-        />
-      </div>
-
-      <DataTable
-        columns={columns}
-        data={suppliers}
-        getRowId={(row) => row.id}
-        loading={isLoading}
-        onRowClick={(row) => router.push(`/suppliers/${row.id}`)}
-        emptyTitle="No suppliers found"
-        emptyDescription={
-          search
-            ? "No suppliers match your search criteria."
-            : "Get started by adding your first supplier."
-        }
-      />
-
-      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add New Supplier</DialogTitle>
-          </DialogHeader>
-
-          <SupplierForm
-            onSubmit={handleAddSupplier as any}
-            onCancel={() => setIsAddOpen(false)}
-            isLoading={isSubmitting}
+        <div className="flex items-center gap-4">
+          <SearchBar
+            value={search}
+            onChange={setSearch}
+            placeholder="Search suppliers by name, email, or phone..."
+            className="max-w-md"
           />
-        </DialogContent>
-      </Dialog>
-    </div>
+        </div>
+
+        <DataTable
+          columns={columns}
+          data={filteredSuppliers}
+          getRowId={(row) => row.id}
+          loading={isLoading}
+          onRowClick={(row) =>
+            router.push(`/suppliers/${row.id}`)
+          }
+          emptyTitle="No suppliers found"
+          emptyDescription={
+            search
+              ? "No suppliers match your search criteria."
+              : "Get started by adding your first supplier."
+          }
+        />
+
+        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add New Supplier</DialogTitle>
+            </DialogHeader>
+
+            <SupplierForm
+              onSubmit={handleAddSupplier as any}
+              onCancel={() => setIsAddOpen(false)}
+              isLoading={isSubmitting}
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
+    </MainLayout>
   );
 }
 

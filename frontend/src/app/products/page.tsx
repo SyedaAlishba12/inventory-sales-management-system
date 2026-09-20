@@ -20,6 +20,7 @@ import {
 
 import { ProductViewModal } from "@/components/products/product-view-modal";
 
+import { useAuth } from "@/hooks/use-auth";
 
 // =========================================================
 // TYPES
@@ -30,7 +31,6 @@ interface Category {
   name: string;
 }
 
-
 // =========================================================
 // BACKEND URL
 // =========================================================
@@ -38,7 +38,6 @@ interface Category {
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   "http://localhost:8000";
-
 
 // =========================================================
 // AUTHENTICATION HELPER
@@ -57,18 +56,8 @@ const getAuthHeaders = (): Record<string, string> => {
     : {};
 };
 
-
 // =========================================================
 // IMAGE URL HELPER
-// =========================================================
-// Backend returns:
-// /uploads/products/image.jpg
-//
-// Browser must load:
-// http://localhost:8000/uploads/products/image.jpg
-//
-// This helper converts relative backend URLs into
-// absolute FastAPI URLs.
 // =========================================================
 
 const getImageUrl = (
@@ -78,7 +67,6 @@ const getImageUrl = (
     return null;
   }
 
-  // Already an absolute URL
   if (
     imageUrl.startsWith("http://") ||
     imageUrl.startsWith("https://")
@@ -86,8 +74,6 @@ const getImageUrl = (
     return imageUrl;
   }
 
-  // Backend returns paths like:
-  // /uploads/products/abc.jpg
   if (imageUrl.startsWith("/")) {
     return `${BACKEND_URL}${imageUrl}`;
   }
@@ -95,12 +81,20 @@ const getImageUrl = (
   return `${BACKEND_URL}/${imageUrl}`;
 };
 
-
 // =========================================================
 // PRODUCTS PAGE
 // =========================================================
 
 export default function ProductsPage() {
+  // ---------------------------------------------------------
+  // AUTHENTICATION
+  // ---------------------------------------------------------
+
+  const { user } = useAuth();
+
+  const isAdmin =
+    user?.role === "admin" ||
+    user?.role === "ADMIN";
 
   // ---------------------------------------------------------
   // STATE
@@ -133,15 +127,12 @@ export default function ProductsPage() {
   const [selectedProduct, setSelectedProduct] =
     useState<Product | null>(null);
 
-
   // ---------------------------------------------------------
   // FETCH CATEGORIES
   // ---------------------------------------------------------
 
   const fetchCategories = async () => {
-
     try {
-
       const response =
         await fetch("/api/categories");
 
@@ -155,17 +146,13 @@ export default function ProductsPage() {
         await response.json();
 
       setCategories(data);
-
     } catch (error) {
-
       console.error(
         "Error fetching categories:",
         error
       );
-
     }
   };
-
 
   // ---------------------------------------------------------
   // FETCH PRODUCTS
@@ -175,26 +162,20 @@ export default function ProductsPage() {
     query = searchQuery,
     categoryId = selectedCategory
   ) => {
-
     try {
-
       setLoading(true);
 
       const params =
         new URLSearchParams();
 
-      // Search by product name / SKU
       if (query.trim()) {
-
         params.set(
           "search",
           query.trim()
         );
       }
 
-      // Filter by category
       if (categoryId) {
-
         params.set(
           "category_id",
           categoryId
@@ -213,7 +194,6 @@ export default function ProductsPage() {
         await fetch(url);
 
       if (!response.ok) {
-
         const errorData =
           await response
             .json()
@@ -232,14 +212,8 @@ export default function ProductsPage() {
       const data =
         await response.json();
 
-
-      // -----------------------------------------------------
-      // FORMAT BACKEND DATA FOR FRONTEND
-      // -----------------------------------------------------
-
       const formattedProducts: Product[] =
         data.map((item: any) => {
-
           const stock =
             Number(
               item.inventory?.current_stock ?? 0
@@ -250,18 +224,12 @@ export default function ProductsPage() {
               item.min_stock_level ?? 0
             );
 
-
-          // IMPORTANT:
-          // Convert backend relative image URL
-          // into complete FastAPI URL.
           const imageUrl =
             getImageUrl(
               item.image_url
             );
 
-
           return {
-
             id:
               item.id,
 
@@ -297,70 +265,51 @@ export default function ProductsPage() {
                 ? "Low Stock"
                 : "Healthy",
 
-            // IMPORTANT
-            // This is now an absolute backend URL.
             image_url:
               imageUrl,
           };
-
         });
-
 
       setProducts(
         formattedProducts
       );
-
     } catch (error) {
-
       console.error(
         "Error fetching products:",
         error
       );
-
     } finally {
-
       setLoading(false);
-
     }
-
   };
-
 
   // ---------------------------------------------------------
   // INITIAL LOAD
   // ---------------------------------------------------------
 
   useEffect(() => {
-
     fetchCategories();
-
   }, []);
-
 
   // ---------------------------------------------------------
   // FETCH PRODUCTS WHEN SEARCH / CATEGORY CHANGES
   // ---------------------------------------------------------
 
   useEffect(() => {
-
     const timer =
       setTimeout(() => {
-
         fetchProducts(
           searchQuery,
           selectedCategory
         );
-
       }, 300);
 
     return () =>
       clearTimeout(timer);
-
   }, [
     searchQuery,
     selectedCategory,
   ]);
-
 
   // ---------------------------------------------------------
   // UPLOAD PRODUCT IMAGE
@@ -369,9 +318,7 @@ export default function ProductsPage() {
   const uploadImage = async (
     imageFile: File
   ): Promise<string | null> => {
-
     try {
-
       const formData =
         new FormData();
 
@@ -379,7 +326,6 @@ export default function ProductsPage() {
         "file",
         imageFile
       );
-
 
       const response =
         await fetch(
@@ -390,9 +336,7 @@ export default function ProductsPage() {
           }
         );
 
-
       if (!response.ok) {
-
         const errorData =
           await response
             .json()
@@ -408,23 +352,13 @@ export default function ProductsPage() {
         );
       }
 
-
       const data =
         await response.json();
-
-
-      // Backend returns:
-      // /uploads/products/filename.jpg
-      //
-      // Convert it immediately to:
-      // http://localhost:8000/uploads/products/filename.jpg
 
       return getImageUrl(
         data.image_url
       );
-
     } catch (error) {
-
       console.error(
         "Error uploading image:",
         error
@@ -436,9 +370,7 @@ export default function ProductsPage() {
 
       return null;
     }
-
   };
-
 
   // =========================================================
   // ADD PRODUCT
@@ -448,9 +380,7 @@ export default function ProductsPage() {
     productData: ProductFormData,
     imageFile: File | null
   ): Promise<boolean> => {
-
     try {
-
       let imageUrl:
         string | null =
         productData.image_url
@@ -459,13 +389,7 @@ export default function ProductsPage() {
             )
           : null;
 
-
-      // -----------------------------------------------------
-      // UPLOAD IMAGE FIRST
-      // -----------------------------------------------------
-
       if (imageFile) {
-
         imageUrl =
           await uploadImage(
             imageFile
@@ -474,13 +398,7 @@ export default function ProductsPage() {
         if (!imageUrl) {
           return false;
         }
-
       }
-
-
-      // -----------------------------------------------------
-      // CREATE PRODUCT
-      // -----------------------------------------------------
 
       const response =
         await fetch(
@@ -496,7 +414,6 @@ export default function ProductsPage() {
             },
 
             body: JSON.stringify({
-
               name:
                 productData.name,
 
@@ -532,13 +449,7 @@ export default function ProductsPage() {
           }
         );
 
-
-      // -----------------------------------------------------
-      // HANDLE ERROR
-      // -----------------------------------------------------
-
       if (!response.ok) {
-
         const errorData =
           await response
             .json()
@@ -557,23 +468,15 @@ export default function ProductsPage() {
         return false;
       }
 
-
-      // -----------------------------------------------------
-      // REFRESH PRODUCTS
-      // -----------------------------------------------------
-
       await fetchProducts(
         searchQuery,
         selectedCategory
       );
 
-
       setIsAddModalOpen(false);
 
       return true;
-
     } catch (error) {
-
       console.error(
         "Error creating product:",
         error
@@ -585,9 +488,7 @@ export default function ProductsPage() {
 
       return false;
     }
-
   };
-
 
   // =========================================================
   // EDIT PRODUCT
@@ -597,15 +498,11 @@ export default function ProductsPage() {
     productData: ProductFormData,
     imageFile: File | null
   ): Promise<boolean> => {
-
     if (!selectedProduct) {
       return false;
     }
 
-
     try {
-
-      // Keep existing image if no new image selected.
       let imageUrl:
         string | null =
         selectedProduct.image_url
@@ -614,13 +511,7 @@ export default function ProductsPage() {
             )
           : null;
 
-
-      // -----------------------------------------------------
-      // UPLOAD NEW IMAGE IF SELECTED
-      // -----------------------------------------------------
-
       if (imageFile) {
-
         imageUrl =
           await uploadImage(
             imageFile
@@ -629,13 +520,7 @@ export default function ProductsPage() {
         if (!imageUrl) {
           return false;
         }
-
       }
-
-
-      // -----------------------------------------------------
-      // UPDATE PRODUCT
-      // -----------------------------------------------------
 
       const response =
         await fetch(
@@ -651,7 +536,6 @@ export default function ProductsPage() {
             },
 
             body: JSON.stringify({
-
               name:
                 productData.name,
 
@@ -682,13 +566,7 @@ export default function ProductsPage() {
           }
         );
 
-
-      // -----------------------------------------------------
-      // HANDLE UPDATE ERROR
-      // -----------------------------------------------------
-
       if (!response.ok) {
-
         const errorData =
           await response
             .json()
@@ -707,24 +585,16 @@ export default function ProductsPage() {
         return false;
       }
 
-
-      // -----------------------------------------------------
-      // REFRESH LIST
-      // -----------------------------------------------------
-
       await fetchProducts(
         searchQuery,
         selectedCategory
       );
 
-
       setIsEditModalOpen(false);
       setSelectedProduct(null);
 
       return true;
-
     } catch (error) {
-
       console.error(
         "Error updating product:",
         error
@@ -736,9 +606,7 @@ export default function ProductsPage() {
 
       return false;
     }
-
   };
-
 
   // =========================================================
   // DELETE PRODUCT
@@ -747,20 +615,16 @@ export default function ProductsPage() {
   const handleDeleteProduct = async (
     product: Product
   ) => {
-
     const confirmed =
       window.confirm(
         `Are you sure you want to delete "${product.name}"?`
       );
 
-
     if (!confirmed) {
       return;
     }
 
-
     try {
-
       const response =
         await fetch(
           `/api/products/${product.id}`,
@@ -773,9 +637,7 @@ export default function ProductsPage() {
           }
         );
 
-
       if (!response.ok) {
-
         const errorData =
           await response
             .json()
@@ -789,15 +651,11 @@ export default function ProductsPage() {
         return;
       }
 
-
-      // Refresh product table
       await fetchProducts(
         searchQuery,
         selectedCategory
       );
-
     } catch (error) {
-
       console.error(
         "Error deleting product:",
         error
@@ -806,11 +664,8 @@ export default function ProductsPage() {
       alert(
         "Something went wrong while deleting the product."
       );
-
     }
-
   };
-
 
   // =========================================================
   // VIEW PRODUCT
@@ -819,10 +674,6 @@ export default function ProductsPage() {
   const handleViewProduct = (
     product: Product
   ) => {
-
-    // Make sure View modal also receives
-    // a valid absolute image URL.
-
     const productForView: Product = {
       ...product,
       image_url:
@@ -836,9 +687,7 @@ export default function ProductsPage() {
     );
 
     setIsViewModalOpen(true);
-
   };
-
 
   // =========================================================
   // EDIT CLICK
@@ -847,7 +696,6 @@ export default function ProductsPage() {
   const handleEditClick = (
     product: Product
   ) => {
-
     const productForEdit: Product = {
       ...product,
       image_url:
@@ -861,9 +709,7 @@ export default function ProductsPage() {
     );
 
     setIsEditModalOpen(true);
-
   };
-
 
   // =========================================================
   // EDIT MODAL DATA
@@ -872,7 +718,6 @@ export default function ProductsPage() {
   const editProductData =
     selectedProduct
       ? {
-
           id:
             selectedProduct.id,
 
@@ -901,30 +746,22 @@ export default function ProductsPage() {
             getImageUrl(
               selectedProduct.image_url
             ),
-
         }
       : null;
-
 
   // =========================================================
   // UI
   // =========================================================
 
   return (
-
     <MainLayout>
-
       <div className="space-y-6">
 
-
-        {/* =================================================
-            HEADER
-        ================================================= */}
+        {/* HEADER */}
 
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 
           <div>
-
             <h1 className="text-2xl font-bold tracking-tight text-[#0F4C5C]">
               Product Management
             </h1>
@@ -933,29 +770,23 @@ export default function ProductsPage() {
               Manage your inventory items, pricing,
               stock levels, images, and SKUs.
             </p>
-
           </div>
 
-
-          <Button
-            onClick={() =>
-              setIsAddModalOpen(true)
-            }
-            className="bg-[#0F4C5C] text-white hover:bg-[#0F4C5C]/90"
-          >
-
-            <Plus className="mr-2 size-4" />
-
-            Add New Product
-
-          </Button>
+          {isAdmin && (
+            <Button
+              onClick={() =>
+                setIsAddModalOpen(true)
+              }
+              className="bg-[#0F4C5C] text-white hover:bg-[#0F4C5C]/90"
+            >
+              <Plus className="mr-2 size-4" />
+              Add New Product
+            </Button>
+          )}
 
         </div>
 
-
-        {/* =================================================
-            SEARCH + CATEGORY FILTER
-        ================================================= */}
+        {/* SEARCH + CATEGORY FILTER */}
 
         <ProductFilters
           searchQuery={
@@ -979,21 +810,13 @@ export default function ProductsPage() {
           }
         />
 
-
-        {/* =================================================
-            PRODUCT TABLE
-        ================================================= */}
+        {/* PRODUCT TABLE */}
 
         {loading ? (
-
           <div className="rounded-xl border border-[#D7E0E3] bg-card py-12 text-center text-[#7A8B91]">
-
             Loading products...
-
           </div>
-
         ) : (
-
           <ProductTable
             products={
               products
@@ -1010,70 +833,66 @@ export default function ProductsPage() {
             onDelete={
               handleDeleteProduct
             }
-          />
 
+            isAdmin={
+              isAdmin
+            }
+          />
         )}
 
+        {/* ADD PRODUCT MODAL */}
 
-        {/* =================================================
-            ADD PRODUCT MODAL
-        ================================================= */}
+        {isAdmin && (
+          <ProductFormModal
+            isOpen={
+              isAddModalOpen
+            }
 
-        <ProductFormModal
-          isOpen={
-            isAddModalOpen
-          }
+            onClose={() =>
+              setIsAddModalOpen(
+                false
+              )
+            }
 
-          onClose={() =>
-            setIsAddModalOpen(
-              false
-            )
-          }
+            mode="add"
 
-          mode="add"
+            onSubmitProduct={
+              handleAddProduct
+            }
+          />
+        )}
 
-          onSubmitProduct={
-            handleAddProduct
-          }
-        />
+        {/* EDIT PRODUCT MODAL */}
 
+        {isAdmin && (
+          <ProductFormModal
+            isOpen={
+              isEditModalOpen
+            }
 
-        {/* =================================================
-            EDIT PRODUCT MODAL
-        ================================================= */}
+            onClose={() => {
+              setIsEditModalOpen(
+                false
+              );
 
-        <ProductFormModal
-          isOpen={
-            isEditModalOpen
-          }
+              setSelectedProduct(
+                null
+              );
+            }}
 
-          onClose={() => {
+            mode="edit"
 
-            setIsEditModalOpen(
-              false
-            );
+            initialData={
+              editProductData
+            }
 
-            setSelectedProduct(
-              null
-            );
+            onSubmitProduct={
+              handleEditProduct
+            }
+          />
+        )}
 
-          }}
-
-          mode="edit"
-
-          initialData={
-            editProductData
-          }
-
-          onSubmitProduct={
-            handleEditProduct
-          }
-        />
-
-
-        {/* =================================================
-            VIEW PRODUCT MODAL
-        ================================================= */}
+        {/* VIEW PRODUCT MODAL */}
 
         <ProductViewModal
           isOpen={
@@ -1081,7 +900,6 @@ export default function ProductsPage() {
           }
 
           onClose={() => {
-
             setIsViewModalOpen(
               false
             );
@@ -1089,7 +907,6 @@ export default function ProductsPage() {
             setSelectedProduct(
               null
             );
-
           }}
 
           product={
@@ -1098,8 +915,6 @@ export default function ProductsPage() {
         />
 
       </div>
-
     </MainLayout>
-
   );
 }
