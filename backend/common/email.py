@@ -61,5 +61,6 @@ If you did not request this, please ignore this email.
             logger.info(f"Password reset email sent to {to_email}")
     except Exception as e:
         logger.error(f"Failed to send password reset email to {to_email}: {e}")
-        # Even if it fails, log the link in case of dev/debug
-        logger.info(f"Password reset link for {to_email}: {reset_link}")
+        # Debug-level fallback so the link is still recoverable, but this log is
+        # distinct from the intentional "SMTP not configured" INFO fallback above.
+        logger.debug(f"[smtp-failure] reset link for {to_email}: {reset_link}")
