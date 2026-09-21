@@ -150,15 +150,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [fetchMe],
   );
 
-  const signup = useCallback(
-    async (data: SignupRequest) => {
-      // POST /api/auth/signup — backend returns the new user (no token on signup).
-      // After signup the user is redirected to /login to authenticate explicitly.
-      await apiClient.post<AuthUser>("/api/auth/signup", data);
-    },
-    [],
-  );
+ const signup = useCallback(
+  async (data: SignupRequest) => {
+    await apiClient.post<AuthUser>("/api/auth/signup", data);
 
+    // Clear any existing session so the newly registered account
+    // does not inherit the previous user's login session.
+    clearStoredToken();
+    setUser(null);
+  },
+  [],
+);
   const logout = useCallback(async () => {
     try {
       await apiClient.post("/api/auth/logout");
